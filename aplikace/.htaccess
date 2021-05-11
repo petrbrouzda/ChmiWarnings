@@ -1,0 +1,24 @@
+Require all granted
+
+# disable directory listing
+<IfModule mod_autoindex.c>
+	Options -Indexes
+</IfModule>
+
+# enable cool URL
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    RewriteRule (.*) www/$1 [L]
+    
+    # aliasy - spravne presmerovani pri chybejicim /
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^(.+[^/])$ /$1/ [R]
+    
+    # subdomeny - spravne presmerovani pri chybejicim /
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^(.+[^/])$ /$1/ [R]
+</IfModule>
+
+
+
