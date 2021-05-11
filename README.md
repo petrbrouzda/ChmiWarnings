@@ -2,7 +2,7 @@
 
 - Znáte [stránku s aktuálními výstrahami](https://www.chmi.cz/files/portal/docs/meteo/om/vystrahy/index.html) Českého hydrometeorologického ústavu?
 - A máte meteostanici, kde byste chtěli zobrazovat výstrahy ČHMÚ pro vaši lokalitu?
-- A poháníte tu meteostanici nějakým malým mikrokontrolérem, pro který je trochu problém parsovat **megabajtový XML soubor** (a vlastně i stáhnout ho přes https ze serveru)?
+- A poháníte tu meteostanici nějakým malým mikrokontrolérem, pro který je trochu problém parsovat **megabajtový XML soubor** (a vlastně i jen ho stáhnout přes https ze serveru)?
 
 **Tato aplikace řeší váš problém!**
 
