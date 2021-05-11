@@ -137,7 +137,7 @@ Položky výstrahy:
 * **instruction** - Vysvětlení a oporučené akce.
 * **category** - Detailní kategorizace výstrahy - pro více detailů čtěte v [návodu ČHMÚ](https://www.chmi.cz/files/portal/docs/meteo/om/vystrahy/doc/Dokumentace_CAP.pdf).
 
-Ukázka vrácených hodnot, když nenín žádná výstraha:
+Ukázka vrácených hodnot, když není žádná výstraha:
 
 ```json
 {
