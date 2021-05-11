@@ -8,13 +8,13 @@
 
 Aplikaci **ChmiWarnings** spustíte na nějakém serveru s PHP a ona pro své klienty odvede všechnu špinavou práci. Konzumentovi nabízí jednoduchou REST službu - řeknu ID okresu, který mne zajímá, a dostanu snadno zpracovatelný JSON s výstrahami pro můj okres. Drahé stahování a parsování XML se provede na serveru, kde je výkon levný.
 
-Aplikace **kešuje** soubor s výstrahami, z webu ČHMI ho tedy stahuje maximálně jednou za hodinu bez ohledu na to, jak často se klienti ptají. Kešuje také odpovědi - pokud se bude konzument ptát stále dokola, parsování XML se bude dělat jen jednou za deset minut (nebo když se stáhne nový soubor).
+Aplikace **kešuje** soubor s výstrahami, z webu ČHMÚ ho tedy stahuje maximálně jednou za hodinu bez ohledu na to, jak často se klienti ptají. Kešuje také odpovědi - pokud se bude konzument ptát stále dokola, parsování XML se bude dělat jen jednou za deset minut (nebo když se stáhne nový soubor).
 
 
 ---
 # Ukázka použití a popis parametrů
 
-ČHMI mapuje výstrahu na okresy ("obce s rozšířenou působností"). Takže nejprve si v [číselníku CISORP](http://apl.czso.cz/iSMS/cisdet.jsp?kodcis=65) najděte svůj okres. Třeba pro Jablonec nad Nisou je kód 5103.
+ČHMÚ mapuje výstrahu na okresy ("obce s rozšířenou působností"). Takže nejprve si v [číselníku CISORP](http://apl.czso.cz/iSMS/cisdet.jsp?kodcis=65) najděte svůj okres. Třeba pro Jablonec nad Nisou je kód 5103.
 
 No a pak zavolejte aplikaci. Zkuste si to na demo serveru: 
 https://lovecka.info/ChmiWarnings1/chmi/vystrahy/5103
