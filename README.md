@@ -112,13 +112,13 @@ Položky výstrahy:
     * time_start_e - Unix epoch time.
     * time_start_t - Lidsky čitelný čas.
 * **time_end_X** - Čas, do kdy výstraha platí, taktéž třikrát.
-* **in_progess** - Je právě čas, kdy výstraha platí? Y/N
+* **in_progress** - Je právě čas, kdy výstraha platí? Y/N
 * **color** - Barevné kódování výstrahy (např. pro ikonu):
     * green - výhledová událost, nedůležitá
     * yellow - výstraha
     * orange - velká výstraha
     * red - z nebe padají žraloci
-* **type** - Typ výstrahy dle [návodu ČHMI](https://www.chmi.cz/files/portal/docs/meteo/om/vystrahy/doc/Dokumentace_CAP.pdf):
+* **type** - Typ výstrahy dle [návodu ČHMÚ](https://www.chmi.cz/files/portal/docs/meteo/om/vystrahy/doc/Dokumentace_CAP.pdf):
     * Wind
     * snow-ice
     * Thunderstorm
@@ -135,7 +135,7 @@ Položky výstrahy:
 * **text** - Nadpis události.
 * **detailed_text** - Detailní popis.
 * **instruction** - Vysvětlení a oporučené akce.
-* **category** - Detailní kategorizace výstrahy - pro více detailů čtěte v [návodu ČHMI](https://www.chmi.cz/files/portal/docs/meteo/om/vystrahy/doc/Dokumentace_CAP.pdf).
+* **category** - Detailní kategorizace výstrahy - pro více detailů čtěte v [návodu ČHMÚ](https://www.chmi.cz/files/portal/docs/meteo/om/vystrahy/doc/Dokumentace_CAP.pdf).
 
 Ukázka vrácených hodnot, když nenín žádná výstraha:
 
