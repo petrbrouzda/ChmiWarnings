@@ -43,7 +43,7 @@ Odpověď může vypadat takto:
          "time_start_t":"zítra 13:00",
          "time_end_e":1620849600,
          "time_end_t":"zítra 22:00",
-         "in_progess":"N"
+         "in_progress":"N"
       }
    ]
 }
@@ -68,7 +68,7 @@ https://lovecka.info/ChmiWarnings1/chmi/vystrahy/5103?kratke=2 a dostanu:
         "time_start_t": "pá 7.5. 12:00",
         "time_end_e": 1620414000,
         "time_end_t": "pá 7.5. 21:00",
-        "in_progess": "N"
+        "in_progress": "N"
       }
    ]
 }
@@ -95,7 +95,7 @@ a dostanu text bez háčků a čárek:
          "time_start_t":"zitra 13:00",
          "time_end_e":1620849600,
          "time_end_t":"zitra 22:00",
-         "in_progess":"N"
+         "in_progress":"N"
       }
    ]
 }
@@ -162,7 +162,7 @@ a naopak když jsou výstrahy dvě:
          "time_start_t":"so 8.5. 00:00",
          "time_end_e":1620453600,
          "time_end_t":"so 8.5. 08:00",
-         "in_progess":"N"
+         "in_progress":"N"
       },
       {
          "text":"Silný vítr",
@@ -174,7 +174,7 @@ a naopak když jsou výstrahy dvě:
          "time_start_t":"pá 7.5. 12:00",
          "time_end_e":1620414000,
          "time_end_t":"pá 7.5. 21:00",
-         "in_progess":"N"
+         "in_progress":"N"
       }
    ]
 }

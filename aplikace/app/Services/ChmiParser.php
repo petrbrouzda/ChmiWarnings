@@ -143,9 +143,9 @@ class ChmiParser
         $event['time_end_t'] = $this->textCnv( $this->hezkeDatum( $end ) );
 
         if( $event['time_start_e'] <= time() && $event['time_end_e'] >= time()) {
-            $event['in_progess'] = 'Y';
+            $event['in_progress'] = 'Y';
         } else {
-            $event['in_progess'] = 'N';
+            $event['in_progress'] = 'N';
         }
 
         return $event;
