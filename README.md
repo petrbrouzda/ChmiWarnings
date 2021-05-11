@@ -111,7 +111,7 @@ Položky výstrahy:
     * time_start_i - ISO formát.
     * time_start_e - Unix epoch time.
     * time_start_t - Lidsky čitelný čas.
-* **time_end_X** - Čas, do kdy výstraha platí, taktéž třikrát.
+* **time_end_X** - Čas, do kdy výstraha platí, taktéž třikrát. Nemusí být vyplněno!
 * **in_progress** - Je právě čas, kdy výstraha platí? Y/N
 * **color** - Barevné kódování výstrahy (např. pro ikonu):
     * green - výhledová událost, nedůležitá

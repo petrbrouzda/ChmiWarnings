@@ -109,7 +109,9 @@ class ChmiParser
             $event['instruction'] = $this->textCnv( "{$info->instruction}" );
         }
         $event['time_start_i'] = "{$info->onset}";
-        $event['time_end_i'] = "{$info->expires}";
+        if( isset($info->expires) ) {
+            $event['time_end_i'] = "{$info->expires}";
+        }
 
         if( $this->kratke==0 ) {
             $category = array();
@@ -138,9 +140,11 @@ class ChmiParser
         $event['time_start_e'] = $start->getTimestamp();
         $event['time_start_t'] = $this->textCnv( $this->hezkeDatum( $start ) );
 
-        $end = DateTime::from($event['time_end_i']);
-        $event['time_end_e'] = $end->getTimestamp();
-        $event['time_end_t'] = $this->textCnv( $this->hezkeDatum( $end ) );
+        if( isset($event['time_end_i']) ) {
+            $end = DateTime::from($event['time_end_i']);
+            $event['time_end_e'] = $end->getTimestamp();
+            $event['time_end_t'] = $this->textCnv( $this->hezkeDatum( $end ) );
+        }
 
         if( $event['time_start_e'] <= time() && $event['time_end_e'] >= time()) {
             $event['in_progress'] = 'Y';
