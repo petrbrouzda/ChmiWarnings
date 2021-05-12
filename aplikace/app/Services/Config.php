@@ -25,6 +25,13 @@ class Config
      */
     public $fileValiditySec = 3600;
 
+    /**
+     * Root adresar aplikace
+     */
+    public function getAppDir()
+    {
+        return substr( __DIR__, 0, strlen(__DIR__)-strlen('/app/Services/')+1 );
+    }
 }
 
 

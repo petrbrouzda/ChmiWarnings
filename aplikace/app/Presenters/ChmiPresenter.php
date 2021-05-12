@@ -14,13 +14,12 @@ declare(strict_types=1);
 namespace App\Presenters;
 
 use Nette;
-use Tracy\Debugger;
-use Nette\Utils\DateTime;
 use Nette\Utils\Json;
 use \App\Services\Logger;
 
+use \App\Services\SmartCache;
+// je potreba kvuli konstantam
 use Nette\Caching\Cache;
-
 
 final class ChmiPresenter extends Nette\Application\UI\Presenter
 {
@@ -32,16 +31,14 @@ final class ChmiPresenter extends Nette\Application\UI\Presenter
     /** @var \App\Services\ChmiParser */
     private $parser;
 
-    /** @var Nette\Caching\Cache */
-	private $cache;
+    /** @var \App\Services\SmartCache */
+    private $cache;
 
-    public function __construct(\App\Services\Downloader $downloader, \App\Services\ChmiParser $parser  )
+    public function __construct(\App\Services\Downloader $downloader, \App\Services\ChmiParser $parser, \App\Services\SmartCache $cache  )
     {
         $this->downloader = $downloader;
         $this->parser = $parser;
-
-        $storage = new Nette\Caching\Storages\FileStorage( __DIR__ . '/../../temp/cache' );
-        $this->cache = new Cache($storage, 'chmi');
+        $this->cache = $cache;
     }
 
 
@@ -58,20 +55,15 @@ final class ChmiPresenter extends Nette\Application\UI\Presenter
             $key = "{$id}.{$kratke}." . ($odhackuj?'Y':'N');
             Logger::log( 'app', Logger::DEBUG , $key );
 
-            $object = $this->cache->load($key);
-            // divne? ne! kes pouziva jen hash, nekontroluje kolize
-            if( $object['key']==$key ) {
-                $result = $object['value'];
-            }
+            // tohle zavolame vzdy; zajisti nacteni souboru, pokud je potreba
+            $fileName = $this->downloader->getFile();
+
+            $result = $this->cache->get( $key );
             if( $result==NULL ) {
-                $fileName = $this->downloader->getFile();
                 $result = $this->parser->parse( $fileName, $id, $odhackuj, $kratke );
 
-                $object['key'] = $key;
-                $object['value'] = $result;
-                // zapis v kesi exspiruje po 10 minutach, nebo pokud se zmeni datovy soubor (= nekdo stahnul aktualni)
-                $this->cache->save($key, $object, [
-                    Cache::EXPIRE => '10 minutes',
+                $this->cache->put($key, $result, [
+                    Cache::EXPIRE => '60 minutes',
                     Cache::FILES => $this->downloader->getDataFileName(),
                 ]);
             } else {

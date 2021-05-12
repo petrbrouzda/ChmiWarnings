@@ -31,7 +31,7 @@ class Downloader
      */
     public function getDataFileName()
     {
-        return $this->getDataDir() . 'data.xml';
+        return $this->config->getAppDir() . '/data/data.xml';
     }
 
     /**
@@ -39,15 +39,7 @@ class Downloader
      */
     public function getTempFileName()
     {
-        return $this->getDataDir() . 'download-temp-' . getmypid() . '.tmp';
-    }
-
-    /**
-     * Adresář data/ v aplikaci
-     */
-    public function getDataDir()
-    {
-        return __DIR__ . '/../../data/';
+        return $this->config->getAppDir() . '/data/download-temp-' . getmypid() . '.tmp';
     }
 
     /**

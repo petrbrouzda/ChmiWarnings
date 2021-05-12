@@ -9,10 +9,8 @@ declare(strict_types=1);
 namespace App\Services;
 
 use Nette;
-use Nette\Utils\FileSystem;
 use Nette\Utils\DateTime;
 
-use \XMLReader;
 use \SimpleXMLElement;
 
 use \App\Services\Logger;
