@@ -218,8 +218,8 @@ a ekvivalentně pro Apache 2.4:
 5) Přidělte webové aplikaci právo zapisovat do adresářů data, log a temp! Bez toho nebude nic fungovat. Nejčastěji by mělo stačit udělat v /var/www/ChmiWarnings/ něco jako:
 
 ```
-chown www-data:www-data data log temp
-chmod u+rwx data log temp
+sudo chown www-data:www-data data log temp
+sudo chmod u+rwx data log temp
 ```
 
 8) No a nyní zkuste v prohlížeči zadat https://vas-server/ChmiWarnings/chmi/vystrahy/5103 a měli byste dostat data.
