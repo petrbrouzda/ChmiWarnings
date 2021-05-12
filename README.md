@@ -196,7 +196,7 @@ Instalační kroky:
 
 3) V konfiguraci webserveru (zde předpokládám Apache) povolte použití vlastních souborů .htaccess v adresářích aplikace – v nastavení /etc/apache2/sites-available/vaše-site.conf pro konkrétní adresář povolte AllowOverride
 
-Tj. pro Apache 2.2:
+Tj. pro konfiguraci ve stylu Apache 2.2:
 ```
 <Directory /var/www/ChmiWarnings/>
         AllowOverride all
