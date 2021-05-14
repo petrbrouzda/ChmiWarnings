@@ -37,22 +37,26 @@ class Logger
     private $fileBase;
 
     /**
-     * false = nic
+     * self::NONE = nic
      * self::ERROR = jen chyby
+     * self::INFO = vse bez debugu
      * self::DEBUG = vse
      */
     const LOG_LEVEL = self::ERROR;
 
     const
-		DEBUG = '-d-',
-		INFO = '-i-',
-		WARNING = 'WRN',
-		ERROR = 'ERR';
+        NONE = 0,
+		DEBUG = 1,
+		INFO = 2,
+		WARNING = 3,
+		ERROR = 4;
+
+    const LEVEL_TEXT = array( '-?-', '-d-', '-i-', 'WRN', 'ERR' );
+
     
     public static function log( $fileName, $level, $msg ) 
     {
-        if( self::LOG_LEVEL===false ) return;
-        if( self::LOG_LEVEL==self::ERROR && $level!=self::ERROR ) return;
+        if( self::LOG_LEVEL > $level ) return;
 
         $fileBase = __DIR__ . '/../../log/' . $fileName ;
 
@@ -69,7 +73,7 @@ class Logger
             $msg = '[ ' . implode ( ', ' , $out ) . ']';
         }
         $pid = getmypid();
-        $line = "{$timePart} {$level} [{$pid}] {$msg}";
+        $line = "{$timePart} " . self::LEVEL_TEXT[$level] . " [{$pid}] {$msg}";
 
         if (!@file_put_contents($file, $line . PHP_EOL, FILE_APPEND | LOCK_EX)) { // @ is escalated to exception
 			throw new \RuntimeException("Unable to write to log file '$file'. Is directory writable?");
@@ -96,8 +100,7 @@ class Logger
 
     public function write( $level, $msg )
     {
-        if( self::LOG_LEVEL===false ) return;
-        if( self::LOG_LEVEL==self::ERROR && $level!=self::ERROR ) return;
+        if( self::LOG_LEVEL > $level ) return;
 
         if( is_array($msg) ) {
             $out = array();
@@ -113,6 +116,3 @@ class Logger
         self::log( $this->fileName, $level, $msg );
     }
 }
-
-
-
