@@ -77,7 +77,7 @@ class Downloader
             try {
                 $this->download( $file );
             } catch( \Exception $ee ) {
-                Logger::log( 'app', Logger::ERROR,  "Chyba stahovani: " . get_class($e) . ": " . $e->getMessage() );
+                Logger::log( 'app', Logger::ERROR,  "Chyba stahovani: " . get_class($ee) . ": " . $ee->getMessage() );
                 if( ! file_exists($file) ) {
                     // pokud mame soubor z minula, pojedeme na predesle verzi
                     // pokud ho ale nemame -> chyba
