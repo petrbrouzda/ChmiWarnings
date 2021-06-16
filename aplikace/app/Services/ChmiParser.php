@@ -90,6 +90,52 @@ class ChmiParser
             <value>3; Thunderstorm</value>
         </parameter>
     </info>
+
+ale taky
+
+<info>
+<language>cs</language>
+<category>Met</category>
+<event>Výhled nebezpečných jevů</event>
+<urgency>Future</urgency>
+<severity>Unknown</severity>
+<certainty>Unknown</certainty>
+<audience>veřejnost, HZS, web</audience>
+<eventCode>
+<valueName>SIVS</valueName>
+<value>OUTLOOK</value>
+</eventCode>
+<onset>2021-06-18T12:00:00+02:00</onset>
+<expires>2021-06-22T00:00:00+02:00</expires>
+<senderName>ČHMÚ, Racko</senderName>
+<description>Od pátku 18.6. do pondělí 21.6. budou překračovat nejvyšší teploty vzduchu 31 °C zpočátku v Čechách, postupně i na ostatním území. Místy mohou překročit maximální teploty až 34 °C. Současně bude růst i nebezpečí vzniku a šíření požárů.</description>
+<instruction>Toto je předběžné varování, doporučujeme sledovat upřesňované předpovědi počasí.</instruction>
+<web>http://www.chmi.cz/files/portal/docs/meteo/om/zpravy/index.html</web>
+<parameter>
+<valueName>situation</valueName>
+<value>Po okraji tlakové výše se středem nad Pobaltím k nám bude proudit velmi teplý vzduch od jihu.</value>
+</parameter>
+<parameter>
+<valueName>eventEndingTime</valueName>
+<value>2021-06-22T00:00:00+02:00</value>
+</parameter>
+<parameter>
+<valueName>awareness_level</valueName>
+<value>2; yellow; Moderate</value>
+</parameter>
+<parameter>
+<valueName>awareness_type</valueName>
+<value>11; unknown</value>
+</parameter>
+<area>
+<areaDesc>Hlavní město Praha</areaDesc>
+<geocode>
+<valueName>CISORP</valueName>
+<value>1100</value>
+</geocode>
+</area>
+
+
     */
 
     /**
@@ -199,7 +245,7 @@ class ChmiParser
         $xmlstr = file_get_contents ( $file );
         $xml = new SimpleXMLElement($xmlstr);
         foreach( $xml->info as $info ) {
-            if( $info->language == 'cs' && !( $info->responseType=='None' || $info->responseType=='AllClear') ) {
+            if( $info->language == 'cs' && !( $info->responseType=='None' || $info->responseType=='AllClear' || "{$info->responseType}"==='') ) {
                 Logger::log( 'app', Logger::DEBUG ,  "  {$info->language} '{$info->event}' {$info->responseType} {$info->urgency} {$info->severity} {$info->certainty}" );
                 if( ! $this->overPozici( $info, $id ) ) {
                     Logger::log( 'app', Logger::DEBUG ,  "    mimo moji pozici" );
