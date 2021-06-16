@@ -132,6 +132,7 @@ Položky výstrahy:
     * unknown
     * flooding
     * rain-flood
+    * unknown
 * **text** - Nadpis události.
 * **detailed_text** - Detailní popis.
 * **instruction** - Vysvětlení a oporučené akce.
