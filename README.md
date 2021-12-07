@@ -6,7 +6,7 @@
 
 **Tato aplikace řeší váš problém!**
 
-Aplikaci **ChmiWarnings** spustíte na nějakém serveru s PHP a ona pro své klienty odvede všechnu špinavou práci. Konzumentovi nabízí jednoduchou REST službu - řeknu ID okresu, který mne zajímá, a dostanu snadno zpracovatelný JSON s výstrahami pro můj okres. Drahé stahování a parsování XML se provede na serveru, kde je výkon levný.
+Aplikaci **ChmiWarnings** spustíte na nějakém serveru s PHP a ona pro své klienty odvede všechnu špinavou práci. Konzumentovi nabízí jednoduchou REST službu - řeknu ID okresu, který mne zajímá, a dostanu snadno zpracovatelný JSON s výstrahami pro můj okres. Náročné stahování a parsování XML se provede na serveru, kde je výkon levný.
 
 Aplikace **kešuje** soubor s výstrahami, z webu ČHMÚ ho tedy stahuje maximálně jednou za hodinu bez ohledu na to, jak často se klienti ptají. Kešuje také odpovědi - pokud se bude konzument ptát stále dokola, parsování XML se bude dělat jen jednou, když se stáhne nový soubor.
 
