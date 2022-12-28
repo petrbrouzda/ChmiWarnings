@@ -250,8 +250,14 @@ ale taky
                 if( ! $this->overPozici( $info, $id ) ) {
                     Logger::log( 'app', Logger::DEBUG ,  "    mimo moji pozici" );
                 } else {
-                    Logger::log( 'app', Logger::DEBUG ,  "    +" );
-                    $events[] = $this->parseInfo( $info );
+                    // udalosti, ktere skoncily drive nez pred ctyrmi hodinami, ignorujeme
+                    // (to muze nastat, nyni 28.12. je v souboru varovani s platnosti do 21.12.)
+                    if( $event['time_end_e'] < (time()-(4*3600)) ) {
+                        Logger::log( 'app', Logger::DEBUG ,  "    uz skoncilo" );
+                    } else {
+                        Logger::log( 'app', Logger::DEBUG ,  "    +" );
+                        $events[] = $this->parseInfo( $info );
+                    }
                 }
             }
         }
