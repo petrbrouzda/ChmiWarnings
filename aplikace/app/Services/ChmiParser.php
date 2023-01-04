@@ -252,11 +252,12 @@ ale taky
                 } else {
                     // udalosti, ktere skoncily drive nez pred ctyrmi hodinami, ignorujeme
                     // (to muze nastat, nyni 28.12. je v souboru varovani s platnosti do 21.12.)
-                    if( $event['time_end_e'] < (time()-(4*3600)) ) {
-                        Logger::log( 'app', Logger::DEBUG ,  "    uz skoncilo" );
+                    $event = $this->parseInfo( $info );
+                    if( $event['time_end_e']!=0 && ($event['time_end_e'] < (time()-(4*3600))) ) {
+                        Logger::log( 'app', Logger::DEBUG ,  "    uz skoncilo ({$event['time_end_e']}  {$event['time_end_i']})" );
                     } else {
                         Logger::log( 'app', Logger::DEBUG ,  "    +" );
-                        $events[] = $this->parseInfo( $info );
+                        $events[] = $event;
                     }
                 }
             }
