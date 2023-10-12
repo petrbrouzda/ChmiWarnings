@@ -225,6 +225,12 @@ sudo chmod u+rwx data log temp
 
 8) No a nyní zkuste v prohlížeči zadat https://vas-server/ChmiWarnings/chmi/vystrahy/5103 a měli byste dostat data.
 
+9) Pokud v adresáři log/ vznikne soubor exception-*.html a hláška v něm bude
+``` Class 'SimpleXMLElement' not found ```
+tak nainstalujte rozšíření php-xml
+``` sudo apt-get install php-xml ```
+  
+
 
 ## Řešení problémů, ladění a úpravy
 
