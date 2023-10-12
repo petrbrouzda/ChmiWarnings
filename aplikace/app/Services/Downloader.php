@@ -51,7 +51,7 @@ class Downloader
 
         $tmpName = $this->getTempFileName();
         if( $this->config->expectedFileSize > @file_put_contents( $tmpName, fopen($this->config->url, 'r')) ) {
-            throw new \Exception( 'Nemohu stahnout soubor' );
+            throw new \Exception( 'Nemohu stahnout soubor, je moc maly' );
         }
         FileSystem::rename( $tmpName, $file );
     }
