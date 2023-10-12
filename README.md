@@ -228,7 +228,9 @@ sudo chmod u+rwx data log temp
 9) Pokud v adresáři log/ vznikne soubor exception-*.html a hláška v něm bude
 ``` Class 'SimpleXMLElement' not found ```
 tak nainstalujte rozšíření php-xml
-``` sudo apt-get install php-xml ```
+``` 
+sudo apt-get install php-xml 
+```
   
 
 
