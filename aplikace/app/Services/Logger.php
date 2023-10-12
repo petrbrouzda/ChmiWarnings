@@ -42,7 +42,7 @@ class Logger
      * self::INFO = vse bez debugu
      * self::DEBUG = vse
      */
-    const LOG_LEVEL = self::DEBUG;
+    const LOG_LEVEL = self::ERROR;
 
     const
         NONE = 0,
