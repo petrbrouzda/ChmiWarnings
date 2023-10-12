@@ -13,7 +13,7 @@ class Config
     /**
      * Minimální délka staženého souboru
      */
-    public $expectedFileSize = 850000;
+    public $expectedFileSize = 700000;
 
     /**
      * URL sluzby CHMI
