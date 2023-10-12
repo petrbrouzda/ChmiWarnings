@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Latte\Runtime;
 
 use Latte\RuntimeException;
+use Nette\Utils\Strings;
 
 
 /**
@@ -23,6 +24,7 @@ class Defaults
 		return [
 			'batch' => [Filters::class, 'batch'],
 			'breakLines' => [Filters::class, 'breaklines'],
+			'breaklines' => [Filters::class, 'breaklines'],
 			'bytes' => [Filters::class, 'bytes'],
 			'capitalize' => extension_loaded('mbstring')
 				? [Filters::class, 'capitalize']
@@ -30,6 +32,7 @@ class Defaults
 			'ceil' => [Filters::class, 'ceil'],
 			'clamp' => [Filters::class, 'clamp'],
 			'dataStream' => [Filters::class, 'dataStream'],
+			'datastream' => [Filters::class, 'dataStream'],
 			'date' => [Filters::class, 'date'],
 			'escapeCss' => [Filters::class, 'escapeCss'],
 			'escapeHtml' => [Filters::class, 'escapeHtml'],
@@ -61,6 +64,7 @@ class Defaults
 			'repeat' => [Filters::class, 'repeat'],
 			'replace' => [Filters::class, 'replace'],
 			'replaceRe' => [Filters::class, 'replaceRe'],
+			'replaceRE' => [Filters::class, 'replaceRe'],
 			'reverse' => [Filters::class, 'reverse'],
 			'round' => [Filters::class, 'round'],
 			'slice' => [Filters::class, 'slice'],
@@ -69,15 +73,17 @@ class Defaults
 			'split' => [Filters::class, 'explode'],
 			'strip' => [Filters::class, 'strip'],
 			'stripHtml' => [Filters::class, 'stripHtml'],
+			'striphtml' => [Filters::class, 'stripHtml'],
 			'stripTags' => [Filters::class, 'stripTags'],
+			'striptags' => [Filters::class, 'stripTags'],
 			'substr' => [Filters::class, 'substring'],
 			'trim' => [Filters::class, 'trim'],
 			'truncate' => [Filters::class, 'truncate'],
 			'upper' => extension_loaded('mbstring')
 				? [Filters::class, 'upper']
 				: function () { throw new RuntimeException('Filter |upper requires mbstring extension.'); },
-			'webalize' => class_exists(\Nette\Utils\Strings::class)
-				? [\Nette\Utils\Strings::class, 'webalize']
+			'webalize' => class_exists(Strings::class)
+				? [Strings::class, 'webalize']
 				: function () { throw new RuntimeException('Filter |webalize requires nette/utils package.'); },
 		];
 	}

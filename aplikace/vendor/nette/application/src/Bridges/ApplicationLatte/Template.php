@@ -40,7 +40,7 @@ class Template implements Nette\Application\UI\Template
 	/**
 	 * Renders template to output.
 	 */
-	public function render(string $file = null, array $params = []): void
+	public function render(?string $file = null, array $params = []): void
 	{
 		Nette\Utils\Arrays::toObject($params, $this);
 		$this->latte->render($file ?: $this->file, $this);
@@ -50,7 +50,7 @@ class Template implements Nette\Application\UI\Template
 	/**
 	 * Renders template to output.
 	 */
-	public function renderToString(string $file = null, array $params = []): string
+	public function renderToString(?string $file = null, array $params = []): string
 	{
 		Nette\Utils\Arrays::toObject($params, $this);
 		return $this->latte->renderToString($file ?: $this->file, $this);
@@ -69,6 +69,7 @@ class Template implements Nette\Application\UI\Template
 			if (func_num_args() || PHP_VERSION_ID >= 70400) {
 				throw $e;
 			}
+
 			trigger_error('Exception in ' . __METHOD__ . "(): {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}", E_USER_ERROR);
 			return '';
 		}
@@ -104,13 +105,20 @@ class Template implements Nette\Application\UI\Template
 	 * Sets translate adapter.
 	 * @return static
 	 */
-	public function setTranslator(?Nette\Localization\Translator $translator)
+	public function setTranslator(?Nette\Localization\Translator $translator, ?string $language = null)
 	{
-		$this->latte->addFilter('translate', function (Latte\Runtime\FilterInfo $fi, ...$args) use ($translator): string {
-			return $translator === null
-				? $args[0]
-				: $translator->translate(...$args);
-		});
+		if (version_compare(Latte\Engine::VERSION, '3', '<')) {
+			$this->latte->addFilter(
+				'translate',
+				function (Latte\Runtime\FilterInfo $fi, ...$args) use ($translator): string {
+					return $translator === null
+						? $args[0]
+						: $translator->translate(...$args);
+				}
+			);
+		} else {
+			$this->latte->addExtension(new Latte\Essential\TranslatorExtension($translator, $language));
+		}
 		return $this;
 	}
 
@@ -146,6 +154,7 @@ class Template implements Nette\Application\UI\Template
 				$res[$prop->getName()] = $prop->getValue($this);
 			}
 		}
+
 		return $res;
 	}
 

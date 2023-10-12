@@ -39,11 +39,12 @@ class MacroSet implements Latte\Macro
 	 * @param  string|callable|null  $end
 	 * @param  string|callable|null  $attr
 	 */
-	public function addMacro(string $name, $begin, $end = null, $attr = null, int $flags = null): self
+	public function addMacro(string $name, $begin, $end = null, $attr = null, ?int $flags = null): self
 	{
 		if (!$begin && !$end && !$attr) {
 			throw new \InvalidArgumentException("At least one argument must be specified for tag '$name'.");
 		}
+
 		foreach ([$begin, $end, $attr] as $arg) {
 			if ($arg && !is_string($arg)) {
 				Latte\Helpers::checkCallback($arg);
@@ -110,6 +111,7 @@ class MacroSet implements Latte\Macro
 			} elseif (!$node->attrCode) {
 				$node->attrCode = "<?php $res ?>";
 			}
+
 			$node->context[1] = Latte\Compiler::CONTEXT_HTML_TEXT;
 
 		} elseif ($node->empty && $node->prefix) {
@@ -122,10 +124,10 @@ class MacroSet implements Latte\Macro
 			} elseif (!$node->openingCode && is_string($res) && $res !== '') {
 				$node->openingCode = "<?php $res ?>";
 			}
-
 		} elseif (!$end) {
 			return false;
 		}
+
 		return null;
 	}
 
@@ -169,7 +171,7 @@ class MacroSet implements Latte\Macro
 	/** @internal */
 	protected function checkExtraArgs(MacroNode $node): void
 	{
-		if ($node->tokenizer->isNext()) {
+		if ($node->tokenizer->isNext(...$node->tokenizer::SIGNIFICANT)) {
 			$args = Latte\Runtime\Filters::truncate($node->tokenizer->joinAll(), 20);
 			throw new CompileException("Unexpected arguments '$args' in " . $node->getNotation());
 		}

@@ -19,7 +19,10 @@ final class Reference
 {
 	use Nette\SmartObject;
 
-	public const SELF = 'self';
+	public const Self = 'self';
+
+	/** @deprecated use Reference::Self */
+	public const SELF = self::Self;
 
 	/** @var string */
 	private $value;
@@ -30,6 +33,7 @@ final class Reference
 		if (strpos($value, '\\') === false) {
 			$value = '\\' . $value;
 		}
+
 		return new static($value);
 	}
 
@@ -48,7 +52,7 @@ final class Reference
 
 	public function isName(): bool
 	{
-		return strpos($this->value, '\\') === false && $this->value !== self::SELF;
+		return strpos($this->value, '\\') === false && $this->value !== self::Self;
 	}
 
 
@@ -60,6 +64,6 @@ final class Reference
 
 	public function isSelf(): bool
 	{
-		return $this->value === self::SELF;
+		return $this->value === self::Self;
 	}
 }

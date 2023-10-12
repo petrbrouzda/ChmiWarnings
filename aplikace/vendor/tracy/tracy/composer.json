@@ -15,7 +15,7 @@
 		}
 	],
 	"require": {
-		"php": ">=7.2 <8.1",
+		"php": ">=7.2 <8.3",
 		"ext-session": "*",
 		"ext-json": "*"
 	},
@@ -25,8 +25,8 @@
 		"nette/mail": "^3.0",
 		"nette/tester": "^2.2",
 		"latte/latte": "^2.5",
-		"psr/log": "^1.0",
-		"phpstan/phpstan": "^0.12"
+		"psr/log": "^1.0 || ^2.0 || ^3.0",
+		"phpstan/phpstan": "^1.0"
 	},
 	"conflict": {
 		"nette/di": "<3.0"
@@ -42,7 +42,7 @@
 	},
 	"extra": {
 		"branch-alias": {
-			"dev-master": "2.8-dev"
+			"dev-master": "2.9-dev"
 		}
 	}
 }

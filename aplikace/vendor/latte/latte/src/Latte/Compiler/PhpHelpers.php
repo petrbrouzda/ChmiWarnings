@@ -29,6 +29,8 @@ class PhpHelpers
 		$specialBrace = false;
 
 		foreach ($tokens as $n => $token) {
+			$next = $tokens[$n + 1] ?? [null, ''];
+
 			if (is_array($token)) {
 				[$name, $token] = ($tmp = $token);
 				if ($name === T_INLINE_HTML) {
@@ -38,34 +40,36 @@ class PhpHelpers
 					$openLevel = $level;
 
 				} elseif ($name === T_CLOSE_TAG) {
-					$next = $tokens[$n + 1] ?? null;
-					if (is_array($next) && $next[0] === T_OPEN_TAG) { // remove ?)<?php
+					if ($next[0] === T_OPEN_TAG) { // remove ?)<?php
 						if (!strspn($lastChar, ';{:/' . ($specialBrace ? '' : '}'))) {
 							$php = rtrim($php) . ($lastChar = ';') . "\n" . str_repeat("\t", $level);
 						} elseif (substr($next[1], -1) === "\n") {
 							$php .= "\n" . str_repeat("\t", $level);
 						}
+
 						$tokens->next();
 
 					} else {
 						if (trim($php) !== '' || substr($res, -1) === '<') { // skip <?php ?) but preserve <<?php
 							$inline = strpos($php, "\n") === false && strlen($res) - strrpos($res, "\n") < $lineLength;
 							$res .= '<?php' . ($inline ? ' ' : "\n" . str_repeat("\t", $openLevel));
-							if (is_array($next) && strpos($next[1], "\n") === false) {
+							if (strpos($next[1], "\n") === false) {
 								$token = rtrim($token, "\n");
 							} else {
 								$php = rtrim($php, "\t");
 							}
+
 							$res .= $php . $token;
 						}
+
 						$php = '';
 						$lastChar = ';';
 					}
-
 				} elseif ($name === T_ELSE || $name === T_ELSEIF) {
-					if ($tokens[$n + 1] === ':' && $lastChar === '}') {
+					if ($next === ':' && $lastChar === '}') {
 						$php .= ';'; // semicolon needed in if(): ... if() ... else:
 					}
+
 					$lastChar = '';
 					$php .= $token;
 
@@ -75,11 +79,14 @@ class PhpHelpers
 				} elseif ($name === T_WHITESPACE) {
 					$prev = $tokens[$n - 1];
 					$lines = substr_count($token, "\n");
-					if ($prev === '{' || $prev === '}' || $prev === ';' || $lines) {
+					if ($prev === '}' && in_array($next[0], [T_ELSE, T_ELSEIF, T_CATCH, T_FINALLY], true)) {
+						$token = ' ';
+					} elseif ($prev === '{' || $prev === '}' || $prev === ';' || $lines) {
 						$token = str_repeat("\n", max(1, $lines)) . str_repeat("\t", $level); // indent last line
 					} elseif ($prev[0] === T_OPEN_TAG) {
 						$token = '';
 					}
+
 					$php .= $token;
 
 				} elseif ($name === T_OBJECT_OPERATOR) {
@@ -90,6 +97,7 @@ class PhpHelpers
 					if (in_array($name, [T_CURLY_OPEN, T_DOLLAR_OPEN_CURLY_BRACES], true)) {
 						$level++;
 					}
+
 					$lastChar = '';
 					$php .= $token;
 				}
@@ -105,10 +113,11 @@ class PhpHelpers
 
 				} elseif ($token === ';') {
 					$specialBrace = false;
-					if (($tokens[$n + 1][0] ?? null) !== T_WHITESPACE) {
+					if ($next[0] !== T_WHITESPACE) {
 						$token .= "\n" . str_repeat("\t", $level); // indent last line
 					}
 				}
+
 				$lastChar = $token;
 				$php .= $token;
 			}
@@ -117,6 +126,7 @@ class PhpHelpers
 		if ($php) {
 			$res .= "<?php\n" . str_repeat("\t", $openLevel) . $php;
 		}
+
 		$res = str_replace(["\t\x08", "\x08"], '', $res);
 		return $res;
 	}
@@ -135,6 +145,7 @@ class PhpHelpers
 					? ($s === '' ? "\n" : '') . "\t" . ($indexed ? '' : self::dump($k) . ' => ') . self::dump($v) . ",\n"
 					: ($s === '' ? '' : ', ') . ($indexed ? '' : self::dump($k) . ' => ') . self::dump($v);
 			}
+
 			return '[' . $s . ']';
 		} elseif ($value === null) {
 			return 'null';
@@ -166,6 +177,7 @@ class PhpHelpers
 						) {
 							break;
 						}
+
 						$n++;
 					}
 
@@ -173,11 +185,13 @@ class PhpHelpers
 					$res .= "<?php echo $export ?>";
 					continue;
 				}
+
 				$res .= $token[1];
 			} else {
 				$res .= $token;
 			}
 		}
+
 		return $res;
 	}
 }

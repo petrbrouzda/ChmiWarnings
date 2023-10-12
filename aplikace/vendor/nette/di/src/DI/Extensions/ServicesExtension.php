@@ -24,7 +24,7 @@ final class ServicesExtension extends Nette\DI\CompilerExtension
 
 	public function getConfigSchema(): Nette\Schema\Schema
 	{
-		return Nette\Schema\Expect::arrayOf(new Nette\DI\Config\DefinitionSchema($this->getContainerBuilder()));
+		return Nette\Schema\Expect::arrayOf(new DefinitionSchema($this->getContainerBuilder()));
 	}
 
 
@@ -60,7 +60,7 @@ final class ServicesExtension extends Nette\DI\CompilerExtension
 
 			$def = $this->retrieveDefinition($name, $config);
 
-			static $methods = [
+			$methods = [
 				Definitions\ServiceDefinition::class => 'updateServiceDefinition',
 				Definitions\AccessorDefinition::class => 'updateAccessorDefinition',
 				Definitions\FactoryDefinition::class => 'updateFactoryDefinition',
@@ -69,7 +69,7 @@ final class ServicesExtension extends Nette\DI\CompilerExtension
 			];
 			$this->{$methods[$config->defType]}($def, $config);
 			$this->updateDefinition($def, $config);
-		} catch (\Exception $e) {
+		} catch (\Throwable $e) {
 			throw new Nette\DI\InvalidConfigurationException(($name ? "Service '$name': " : '') . $e->getMessage(), 0, $e);
 		}
 	}
@@ -80,8 +80,8 @@ final class ServicesExtension extends Nette\DI\CompilerExtension
 	 */
 	private function updateServiceDefinition(Definitions\ServiceDefinition $definition, \stdClass $config): void
 	{
-		if ($config->factory) {
-			$definition->setFactory(Helpers::filterArguments([$config->factory])[0]);
+		if ($config->create) {
+			$definition->setCreator(Helpers::filterArguments([$config->create])[0]);
 			$definition->setType(null);
 		}
 
@@ -92,8 +92,9 @@ final class ServicesExtension extends Nette\DI\CompilerExtension
 		if ($config->arguments) {
 			$arguments = Helpers::filterArguments($config->arguments);
 			if (empty($config->reset['arguments']) && !Nette\Utils\Arrays::isList($arguments)) {
-				$arguments += $definition->getFactory()->arguments;
+				$arguments = array_replace($definition->getCreator()->arguments, $arguments);
 			}
+
 			$definition->setArguments($arguments);
 		}
 
@@ -101,16 +102,18 @@ final class ServicesExtension extends Nette\DI\CompilerExtension
 			if (!empty($config->reset['setup'])) {
 				$definition->setSetup([]);
 			}
+
 			foreach (Helpers::filterArguments($config->setup) as $id => $setup) {
 				if (is_array($setup)) {
 					$setup = new Statement(key($setup), array_values($setup));
 				}
+
 				$definition->addSetup($setup);
 			}
 		}
 
 		if (isset($config->inject)) {
-			$definition->addTag(InjectExtension::TAG_INJECT, $config->inject);
+			$definition->addTag(InjectExtension::TagInject, $config->inject);
 		}
 	}
 
@@ -121,7 +124,7 @@ final class ServicesExtension extends Nette\DI\CompilerExtension
 			$definition->setImplement($config->implement);
 		}
 
-		if ($ref = $config->factory ?? $config->type ?? null) {
+		if ($ref = $config->create ?? $config->type ?? null) {
 			$definition->setReference($ref);
 		}
 	}
@@ -136,19 +139,20 @@ final class ServicesExtension extends Nette\DI\CompilerExtension
 			$definition->setAutowired(true);
 		}
 
-		if ($config->factory) {
-			$resultDef->setFactory(Helpers::filterArguments([$config->factory])[0]);
+		if ($config->create) {
+			$resultDef->setCreator(Helpers::filterArguments([$config->create])[0]);
 		}
 
 		if ($config->type) {
-			$resultDef->setFactory($config->type);
+			$resultDef->setCreator($config->type);
 		}
 
 		if ($config->arguments) {
 			$arguments = Helpers::filterArguments($config->arguments);
 			if (empty($config->reset['arguments']) && !Nette\Utils\Arrays::isList($arguments)) {
-				$arguments += $resultDef->getFactory()->arguments;
+				$arguments = array_replace($resultDef->getCreator()->arguments, $arguments);
 			}
+
 			$resultDef->setArguments($arguments);
 		}
 
@@ -156,10 +160,12 @@ final class ServicesExtension extends Nette\DI\CompilerExtension
 			if (!empty($config->reset['setup'])) {
 				$resultDef->setSetup([]);
 			}
+
 			foreach (Helpers::filterArguments($config->setup) as $id => $setup) {
 				if (is_array($setup)) {
 					$setup = new Statement(key($setup), array_values($setup));
 				}
+
 				$resultDef->addSetup($setup);
 			}
 		}
@@ -169,7 +175,7 @@ final class ServicesExtension extends Nette\DI\CompilerExtension
 		}
 
 		if (isset($config->inject)) {
-			$definition->addTag(InjectExtension::TAG_INJECT, $config->inject);
+			$definition->addTag(InjectExtension::TagInject, $config->inject);
 		}
 	}
 
@@ -208,6 +214,7 @@ final class ServicesExtension extends Nette\DI\CompilerExtension
 			if (!empty($config->reset['tags'])) {
 				$definition->setTags([]);
 			}
+
 			foreach ($config->tags as $tag => $attrs) {
 				if (is_int($tag) && is_string($attrs)) {
 					$definition->addTag($attrs);
@@ -226,6 +233,7 @@ final class ServicesExtension extends Nette\DI\CompilerExtension
 		} elseif (preg_match('#^@[\w\\\\]+$#D', $key)) {
 			return $this->getContainerBuilder()->getByType(substr($key, 1), true);
 		}
+
 		return $key;
 	}
 

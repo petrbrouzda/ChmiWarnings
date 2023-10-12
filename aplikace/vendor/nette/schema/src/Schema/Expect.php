@@ -40,6 +40,7 @@ final class Expect
 		if ($args) {
 			$type->default($args[0]);
 		}
+
 		return $type;
 	}
 
@@ -93,12 +94,14 @@ final class Expect
 				}
 			}
 		}
+
 		return (new Structure($items))->castTo($ro->getName());
 	}
 
 
 	/**
-	 * @param  string|Schema  $type
+	 * @param  string|Schema  $valueType
+	 * @param  string|Schema|null  $keyType
 	 */
 	public static function arrayOf($valueType, $keyType = null): Type
 	{

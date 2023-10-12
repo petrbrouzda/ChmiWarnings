@@ -56,6 +56,7 @@ final class Method
 			if (PHP_VERSION_ID >= 70400) {
 				throw $e;
 			}
+
 			trigger_error('Exception in ' . __METHOD__ . "(): {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}", E_USER_ERROR);
 			return '';
 		}
@@ -63,7 +64,7 @@ final class Method
 
 
 	/** @return static */
-	public function setBody(?string $code, array $args = null): self
+	public function setBody(?string $code, ?array $args = null): self
 	{
 		$this->body = $args === null || $code === null
 			? $code
@@ -129,6 +130,7 @@ final class Method
 		if (func_num_args() > 1) {
 			$param->setDefaultValue($defaultValue);
 		}
+
 		return $this->parameters[$name] = $param;
 	}
 
@@ -136,8 +138,8 @@ final class Method
 	/** @throws Nette\InvalidStateException */
 	public function validate(): void
 	{
-		if ($this->abstract && ($this->final || $this->visibility === ClassType::VISIBILITY_PRIVATE)) {
-			throw new Nette\InvalidStateException('Method cannot be abstract and final or private.');
+		if ($this->abstract && ($this->final || $this->visibility === ClassType::VisibilityPrivate)) {
+			throw new Nette\InvalidStateException("Method $this->name() cannot be abstract and final or private at the same time.");
 		}
 	}
 }

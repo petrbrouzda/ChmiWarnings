@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Nette\Application\Routers;
 
+use JetBrains\PhpStorm\Language;
 use Nette;
 
 
@@ -17,13 +18,13 @@ use Nette;
  */
 class RouteList extends Nette\Routing\RouteList implements Nette\Routing\Router, \ArrayAccess, \Countable, \IteratorAggregate
 {
-	private const PRESENTER_KEY = 'presenter';
+	private const PresenterKey = 'presenter';
 
 	/** @var string|null */
 	private $module;
 
 
-	public function __construct(string $module = null)
+	public function __construct(?string $module = null)
 	{
 		parent::__construct();
 		$this->module = $module ? $module . ':' : null;
@@ -31,16 +32,15 @@ class RouteList extends Nette\Routing\RouteList implements Nette\Routing\Router,
 
 
 	/**
-	 * Maps HTTP request to an array.
+	 * Support for modules.
 	 */
-	public function match(Nette\Http\IRequest $httpRequest): ?array
+	protected function completeParameters(array $params): ?array
 	{
-		$params = parent::match($httpRequest);
-
-		$presenter = $params[self::PRESENTER_KEY] ?? null;
+		$presenter = $params[self::PresenterKey] ?? null;
 		if (is_string($presenter) && strncmp($presenter, 'Nette:', 6)) {
-			$params[self::PRESENTER_KEY] = $this->module . $presenter;
+			$params[self::PresenterKey] = $this->module . $presenter;
 		}
+
 		return $params;
 	}
 
@@ -51,11 +51,11 @@ class RouteList extends Nette\Routing\RouteList implements Nette\Routing\Router,
 	public function constructUrl(array $params, Nette\Http\UrlScript $refUrl): ?string
 	{
 		if ($this->module) {
-			if (strncmp($params[self::PRESENTER_KEY], $this->module, strlen($this->module)) !== 0) {
+			if (strncmp($params[self::PresenterKey], $this->module, strlen($this->module)) !== 0) {
 				return null;
 			}
 
-			$params[self::PRESENTER_KEY] = substr($params[self::PRESENTER_KEY], strlen($this->module));
+			$params[self::PresenterKey] = substr($params[self::PresenterKey], strlen($this->module));
 		}
 
 		return parent::constructUrl($params, $refUrl);
@@ -63,12 +63,15 @@ class RouteList extends Nette\Routing\RouteList implements Nette\Routing\Router,
 
 
 	/**
-	 * @param  string  $mask  e.g. '<presenter>/<action>/<id \d{1,3}>'
 	 * @param  array|string|\Closure  $metadata  default values or metadata or callback for NetteModule\MicroPresenter
 	 * @return static
 	 */
-	public function addRoute(string $mask, $metadata = [], int $flags = 0)
-	{
+	public function addRoute(
+		#[Language('TEXT')]
+		string $mask,
+		$metadata = [],
+		int $flags = 0
+	) {
 		$this->add(new Route($mask, $metadata), $flags);
 		return $this;
 	}
@@ -120,11 +123,13 @@ class RouteList extends Nette\Routing\RouteList implements Nette\Routing\Router,
 	 * @return mixed
 	 * @throws Nette\OutOfRangeException
 	 */
+	#[\ReturnTypeWillChange]
 	public function offsetGet($index)
 	{
 		if (!$this->offsetExists($index)) {
 			throw new Nette\OutOfRangeException('Offset invalid or out of range');
 		}
+
 		return $this->getRouters()[$index];
 	}
 
@@ -147,6 +152,7 @@ class RouteList extends Nette\Routing\RouteList implements Nette\Routing\Router,
 		if (!$this->offsetExists($index)) {
 			throw new Nette\OutOfRangeException('Offset invalid or out of range');
 		}
+
 		$this->modify($index, null);
 	}
 

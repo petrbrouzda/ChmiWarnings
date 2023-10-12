@@ -32,6 +32,7 @@ class SQLiteJournal implements Journal
 		if (!extension_loaded('pdo_sqlite')) {
 			throw new Nette\NotSupportedException('SQLiteJournal requires PHP extension pdo_sqlite which is not loaded.');
 		}
+
 		$this->path = $path;
 	}
 
@@ -59,6 +60,7 @@ class SQLiteJournal implements Journal
 			CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_key_tag ON tags(key, tag);
 			CREATE UNIQUE INDEX IF NOT EXISTS idx_priorities_key ON priorities(key);
 			CREATE INDEX IF NOT EXISTS idx_priorities_priority ON priorities(priority);
+			PRAGMA synchronous = NORMAL;
 		');
 	}
 
@@ -68,22 +70,24 @@ class SQLiteJournal implements Journal
 		if (!$this->pdo) {
 			$this->open();
 		}
+
 		$this->pdo->exec('BEGIN');
 
-		if (!empty($dependencies[Cache::TAGS])) {
+		if (!empty($dependencies[Cache::Tags])) {
 			$this->pdo->prepare('DELETE FROM tags WHERE key = ?')->execute([$key]);
 
-			foreach ($dependencies[Cache::TAGS] as $tag) {
+			foreach ($dependencies[Cache::Tags] as $tag) {
 				$arr[] = $key;
 				$arr[] = $tag;
 			}
+
 			$this->pdo->prepare('INSERT INTO tags (key, tag) SELECT ?, ?' . str_repeat('UNION SELECT ?, ?', count($arr) / 2 - 1))
 				->execute($arr);
 		}
 
-		if (!empty($dependencies[Cache::PRIORITY])) {
+		if (!empty($dependencies[Cache::Priority])) {
 			$this->pdo->prepare('REPLACE INTO priorities (key, priority) VALUES (?, ?)')
-				->execute([$key, (int) $dependencies[Cache::PRIORITY]]);
+				->execute([$key, (int) $dependencies[Cache::Priority]]);
 		}
 
 		$this->pdo->exec('COMMIT');
@@ -95,7 +99,8 @@ class SQLiteJournal implements Journal
 		if (!$this->pdo) {
 			$this->open();
 		}
-		if (!empty($conditions[Cache::ALL])) {
+
+		if (!empty($conditions[Cache::All])) {
 			$this->pdo->exec('
 				BEGIN;
 				DELETE FROM tags;
@@ -107,15 +112,15 @@ class SQLiteJournal implements Journal
 		}
 
 		$unions = $args = [];
-		if (!empty($conditions[Cache::TAGS])) {
-			$tags = (array) $conditions[Cache::TAGS];
+		if (!empty($conditions[Cache::Tags])) {
+			$tags = (array) $conditions[Cache::Tags];
 			$unions[] = 'SELECT DISTINCT key FROM tags WHERE tag IN (?' . str_repeat(', ?', count($tags) - 1) . ')';
 			$args = $tags;
 		}
 
-		if (!empty($conditions[Cache::PRIORITY])) {
+		if (!empty($conditions[Cache::Priority])) {
 			$unions[] = 'SELECT DISTINCT key FROM priorities WHERE priority <= ?';
-			$args[] = (int) $conditions[Cache::PRIORITY];
+			$args[] = (int) $conditions[Cache::Priority];
 		}
 
 		if (empty($unions)) {

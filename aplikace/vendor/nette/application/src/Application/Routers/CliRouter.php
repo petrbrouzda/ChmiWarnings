@@ -19,7 +19,7 @@ final class CliRouter implements Nette\Routing\Router
 {
 	use Nette\SmartObject;
 
-	private const PRESENTER_KEY = 'action';
+	private const PresenterKey = 'action';
 
 	/** @var array */
 	private $defaults;
@@ -40,7 +40,7 @@ final class CliRouter implements Nette\Routing\Router
 			return null;
 		}
 
-		$names = [self::PRESENTER_KEY];
+		$names = [self::PresenterKey];
 		$params = $this->defaults;
 		$args = $_SERVER['argv'];
 		array_shift($args);
@@ -54,6 +54,7 @@ final class CliRouter implements Nette\Routing\Router
 				} else {
 					$params[] = $arg;
 				}
+
 				$flag = null;
 				continue;
 			}
@@ -75,14 +76,16 @@ final class CliRouter implements Nette\Routing\Router
 			}
 		}
 
-		if (!isset($params[self::PRESENTER_KEY])) {
+		if (!isset($params[self::PresenterKey])) {
 			throw new Nette\InvalidStateException('Missing presenter & action in route definition.');
 		}
-		[$module, $presenter] = Nette\Application\Helpers::splitName($params[self::PRESENTER_KEY]);
+
+		[$module, $presenter] = Nette\Application\Helpers::splitName($params[self::PresenterKey]);
 		if ($module !== '') {
-			$params[self::PRESENTER_KEY] = $presenter;
+			$params[self::PresenterKey] = $presenter;
 			$presenter = $module;
 		}
+
 		$params['presenter'] = $presenter;
 
 		return $params;

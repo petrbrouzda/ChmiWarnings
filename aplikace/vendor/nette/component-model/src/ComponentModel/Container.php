@@ -19,7 +19,7 @@ use Nette;
  */
 class Container extends Component implements IContainer
 {
-	private const NAME_REGEXP = '#^[a-zA-Z0-9_]+$#D';
+	private const NameRegexp = '#^[a-zA-Z0-9_]+$#D';
 
 	/** @var IComponent[] */
 	private $components = [];
@@ -36,7 +36,7 @@ class Container extends Component implements IContainer
 	 * @return static
 	 * @throws Nette\InvalidStateException
 	 */
-	public function addComponent(IComponent $component, ?string $name, string $insertBefore = null)
+	public function addComponent(IComponent $component, ?string $name, ?string $insertBefore = null)
 	{
 		if ($name === null) {
 			$name = $component->getName();
@@ -45,7 +45,7 @@ class Container extends Component implements IContainer
 			}
 		}
 
-		if (!preg_match(self::NAME_REGEXP, $name)) {
+		if (!preg_match(self::NameRegexp, $name)) {
 			throw new Nette\InvalidArgumentException("Component name must be non-empty alphanumeric string, '$name' given.");
 		}
 
@@ -59,6 +59,7 @@ class Container extends Component implements IContainer
 			if ($obj === $component) {
 				throw new Nette\InvalidStateException("Circular reference detected while adding component '$name'.");
 			}
+
 			$obj = $obj->getParent();
 		} while ($obj !== null);
 
@@ -71,8 +72,10 @@ class Container extends Component implements IContainer
 				if ((string) $k === $insertBefore) {
 					$tmp[$name] = $component;
 				}
+
 				$tmp[$k] = $v;
 			}
+
 			$this->components = $tmp;
 		} else {
 			$this->components[$name] = $component;
@@ -84,6 +87,7 @@ class Container extends Component implements IContainer
 			unset($this->components[$name]); // undo
 			throw $e;
 		}
+
 		return $this;
 	}
 
@@ -109,13 +113,14 @@ class Container extends Component implements IContainer
 	 */
 	final public function getComponent(string $name, bool $throw = true): ?IComponent
 	{
-		[$name] = $parts = explode(self::NAME_SEPARATOR, $name, 2);
+		[$name] = $parts = explode(self::NameSeparator, $name, 2);
 
 		if (!isset($this->components[$name])) {
-			if (!preg_match(self::NAME_REGEXP, $name)) {
+			if (!preg_match(self::NameRegexp, $name)) {
 				if ($throw) {
 					throw new Nette\InvalidArgumentException("Component name must be non-empty alphanumeric string, '$name' given.");
 				}
+
 				return null;
 			}
 
@@ -136,7 +141,6 @@ class Container extends Component implements IContainer
 			} elseif ($throw) {
 				throw new Nette\InvalidArgumentException("Component with name '$name' is not container and cannot have '$parts[1]' component.");
 			}
-
 		} elseif ($throw) {
 			$hint = Nette\Utils\ObjectHelpers::getSuggestion(array_merge(
 				array_map('strval', array_keys($this->components)),
@@ -144,6 +148,7 @@ class Container extends Component implements IContainer
 			), $name);
 			throw new Nette\InvalidArgumentException("Component with name '$name' does not exist" . ($hint ? ", did you mean '$hint'?" : '.'));
 		}
+
 		return null;
 	}
 
@@ -155,14 +160,20 @@ class Container extends Component implements IContainer
 	{
 		$ucname = ucfirst($name);
 		$method = 'createComponent' . $ucname;
-		if ($ucname !== $name && method_exists($this, $method) && (new \ReflectionMethod($this, $method))->getName() === $method) {
+		if (
+			$ucname !== $name
+			&& method_exists($this, $method)
+			&& (new \ReflectionMethod($this, $method))->getName() === $method
+		) {
 			$component = $this->$method($name);
 			if (!$component instanceof IComponent && !isset($this->components[$name])) {
-				$class = get_class($this);
+				$class = static::class;
 				throw new Nette\UnexpectedValueException("Method $class::$method() did not return or create the desired component.");
 			}
+
 			return $component;
 		}
+
 		return null;
 	}
 
@@ -171,17 +182,19 @@ class Container extends Component implements IContainer
 	 * Iterates over descendants components.
 	 * @return \Iterator<int|string,IComponent>
 	 */
-	final public function getComponents(bool $deep = false, string $filterType = null): \Iterator
+	final public function getComponents(bool $deep = false, ?string $filterType = null): \Iterator
 	{
 		$iterator = new RecursiveComponentIterator($this->components);
 		if ($deep) {
 			$iterator = new \RecursiveIteratorIterator($iterator, \RecursiveIteratorIterator::SELF_FIRST);
 		}
+
 		if ($filterType) {
 			$iterator = new \CallbackFilterIterator($iterator, function ($item) use ($filterType) {
 				return $item instanceof $filterType;
 			});
 		}
+
 		return $iterator;
 	}
 
@@ -210,8 +223,10 @@ class Container extends Component implements IContainer
 			foreach ($this->components as $name => $component) {
 				$this->components[$name] = clone $component;
 			}
+
 			$oldMyself->cloning = null;
 		}
+
 		parent::__clone();
 	}
 

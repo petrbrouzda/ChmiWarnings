@@ -110,7 +110,7 @@ class BlockMacros extends MacroSet
 		}
 
 		return [
-			($this->extends === null ? '' : '$this->parentName = ' . $this->extends . ';') . implode($this->imports),
+			($this->extends === null ? '' : '$this->parentName = ' . $this->extends . ';') . implode('', $this->imports),
 		];
 	}
 
@@ -131,14 +131,21 @@ class BlockMacros extends MacroSet
 		if ($node->tokenizer->isNext('=') && !$node->tokenizer->depth) {
 			trigger_error('The assignment in the {' . $node->name . ' ' . $tmp . '= ...} looks like an error.', E_USER_NOTICE);
 		}
+
 		$node->tokenizer->reset();
 
-		[$name, $mod] = $node->tokenizer->fetchWordWithModifier(['block', 'file']);
-		if ($mod !== 'block') {
-			if ($mod === 'file' || !$name || !preg_match('~#|[\w-]+$~DA', $name)) {
-				return false; // {include file}
-			}
-			$name = ltrim($name, '#');
+		[$name, $mod] = $node->tokenizer->fetchWordWithModifier(['block', 'file', '#']);
+		if (!$mod && preg_match('~([\'"])[\w-]+\\1$~DA', $name)) {
+			trigger_error("Change {include $name} to {include file $name} for clarity (on line $node->startLine)", E_USER_NOTICE);
+		}
+		if ($mod !== 'block' && $mod !== '#'
+			&& ($mod === 'file' || !$name || !preg_match('~[\w-]+$~DA', $name))
+		) {
+			return false; // {include file}
+		}
+
+		if ($name === 'parent' && $node->modifiers !== '') {
+			throw new CompileException('Filters are not allowed in {include parent}');
 		}
 
 		$noEscape = Helpers::removeFilter($node->modifiers, 'noescape');
@@ -152,17 +159,18 @@ class BlockMacros extends MacroSet
 				'$this->createTemplate(%node.word, %node.array? + $this->params, "include")->renderToContentType(%raw, %word) %node.line;',
 				$node->modifiers
 					? $writer->write('function ($s, $type) { $ʟ_fi = new LR\FilterInfo($type); return %modifyContent($s); }')
-					: PhpHelpers::dump($noEscape ? null : implode($node->context)),
+					: PhpHelpers::dump($noEscape ? null : implode('', $node->context)),
 				$name
 			);
 		}
 
 		$parent = $name === 'parent';
 		if ($name === 'parent' || $name === 'this') {
-			$item = $node->closest(['block', 'define'], function ($node) { return isset($node->data->name); });
+			$item = $node->closest(['block', 'define'], function ($node) { return $node->data->name !== ''; });
 			if (!$item) {
 				throw new CompileException("Cannot include $name block outside of any block.");
 			}
+
 			$name = $item->data->name;
 		}
 
@@ -174,11 +182,11 @@ class BlockMacros extends MacroSet
 
 		return $writer->write(
 			'$this->renderBlock' . ($parent ? 'Parent' : '')
-			. '($ʟ_nm = ' . $phpName . ', '
+			. '(' . $phpName . ', '
 			. '%node.array? + ' . $key
 			. ($node->modifiers
 				? ', function ($s, $type) { $ʟ_fi = new LR\FilterInfo($type); return %modifyContent($s); }'
-				: ($noEscape || $parent ? '' : ', ' . PhpHelpers::dump(implode($node->context))))
+				: ($noEscape || $parent ? '' : ', ' . PhpHelpers::dump(implode('', $node->context))))
 			. ') %node.line;'
 		);
 	}
@@ -190,14 +198,18 @@ class BlockMacros extends MacroSet
 	 */
 	public function macroIncludeBlock(MacroNode $node, PhpWriter $writer): string
 	{
-		//trigger_error('Macro {includeblock} is deprecated, use {include 'file.latte' with blocks} or similar macro {import}.', E_USER_DEPRECATED);
+		trigger_error("Macro {includeblock} is deprecated, use {include $node->args with blocks} or similar macro {import} (on line $node->startLine)", E_USER_DEPRECATED);
 		$node->replaced = false;
 		$node->validate(true);
 		return $writer->write(
-			'ob_start(function () {});
-			$this->createTemplate(%node.word, %node.array? + get_defined_vars(), "includeblock")->renderToContentType(%var) %node.line;
-			echo rtrim(ob_get_clean());',
-			implode($node->context)
+			'
+			ob_start(function () {});
+			try {
+				$this->createTemplate(%node.word, %node.array? + get_defined_vars(), "includeblock")->renderToContentType(%var) %node.line;
+			} finally {
+				echo rtrim(ob_get_clean());
+			}',
+			implode('', $node->context)
 		);
 	}
 
@@ -237,6 +249,7 @@ class BlockMacros extends MacroSet
 		} else {
 			$this->extends = $writer->write('%node.word%node.args');
 		}
+
 		if (!$this->getCompiler()->isInHead()) {
 			throw new CompileException($node->getNotation() . ' must be placed in template head.');
 		}
@@ -258,12 +271,13 @@ class BlockMacros extends MacroSet
 			if ($node->modifiers === '') {
 				return '';
 			}
+
 			$node->modifiers .= '|escape';
 			$node->closingCode = $writer->write(
-				'<?php $ʟ_fi = new LR\FilterInfo(%var); echo %modifyContent(ob_get_clean()); ?>',
-				implode($node->context)
+				'<?php } finally { $ʟ_fi = new LR\FilterInfo(%var); echo %modifyContent(ob_get_clean()); } ?>',
+				implode('', $node->context)
 			);
-			return $writer->write('ob_start(function () {}) %node.line;');
+			return $writer->write('ob_start(function () {}) %node.line; try {');
 		}
 
 		if (Helpers::startsWith((string) $node->context[1], Latte\Compiler::CONTEXT_HTML_ATTRIBUTE)) {
@@ -312,6 +326,7 @@ class BlockMacros extends MacroSet
 			$node->setArgs($node->args . $node->modifiers);
 			$node->modifiers = '';
 		}
+
 		$node->validate(true);
 
 		[$name, $local] = $node->tokenizer->fetchWordWithModifier('local');
@@ -330,10 +345,11 @@ class BlockMacros extends MacroSet
 
 		$tokens = $node->tokenizer;
 		$params = [];
-		while ($tokens->isNext()) {
+		while ($tokens->isNext(...$tokens::SIGNIFICANT)) {
 			if ($tokens->nextToken($tokens::T_SYMBOL, '?', 'null', '\\')) { // type
 				$tokens->nextAll($tokens::T_SYMBOL, '\\', '|', '[', ']', 'null');
 			}
+
 			$param = $tokens->consumeValue($tokens::T_VARIABLE);
 			$default = $tokens->nextToken('=')
 				? $tokens->joinUntilSameDepth(',')
@@ -345,7 +361,7 @@ class BlockMacros extends MacroSet
 				substr($param, 1),
 				$default
 			);
-			if ($tokens->isNext()) {
+			if ($tokens->isNext(...$tokens::SIGNIFICANT)) {
 				$tokens->consumeValue(',');
 			}
 		}
@@ -386,7 +402,7 @@ class BlockMacros extends MacroSet
 		return $writer->write(
 			'$this->addBlock($ʟ_nm = %word, %var, [[$this, %var]], %var);',
 			$data->name,
-			implode($node->context),
+			implode('', $node->context),
 			$func,
 			$layer
 		);
@@ -416,6 +432,10 @@ class BlockMacros extends MacroSet
 			throw new CompileException("Snippet name must start with letter a-z, '$data->name' given.");
 		}
 
+		if ($node->prefix && $node->prefix !== $node::PREFIX_NONE) {
+			trigger_error("Use n:snippet instead of {$node->getNotation()}", E_USER_DEPRECATED);
+		}
+
 		$block = $this->addBlock($node, Template::LAYER_SNIPPET);
 
 		$data->after = function () use ($node, $writer, $data, $block) {
@@ -443,6 +463,7 @@ class BlockMacros extends MacroSet
 			if (isset($node->htmlNode->macroAttrs['foreach'])) {
 				throw new CompileException('Combination of n:snippet with n:foreach is invalid, use n:inner-foreach.');
 			}
+
 			$node->attrCode = $writer->write(
 				"<?php echo ' {$this->snippetAttribute}=\"' . htmlspecialchars(\$this->global->snippetDriver->getHtmlId(%var)) . '\"' ?>",
 				$data->name
@@ -472,6 +493,7 @@ class BlockMacros extends MacroSet
 					$node->closingCode = $node->openingCode = '<?php ?>';
 				};
 			}
+
 			$node->attrCode = $writer->write(
 				"<?php echo ' {$this->snippetAttribute}=\"' . htmlspecialchars(\$this->global->snippetDriver->getHtmlId(\$ʟ_nm = %word)) . '\"' ?>",
 				$data->name
@@ -527,13 +549,14 @@ class BlockMacros extends MacroSet
 		if (isset($node->data->after)) {
 			($node->data->after)();
 		}
+
 		return $node->name === 'define'
 			? ' ' // consume next new line
 			: '';
 	}
 
 
-	private function addBlock(MacroNode $node, string $layer = null): Block
+	private function addBlock(MacroNode $node, ?string $layer = null): Block
 	{
 		$data = $node->data;
 		if ($layer === Template::LAYER_SNIPPET
@@ -544,13 +567,13 @@ class BlockMacros extends MacroSet
 		}
 
 		$block = $this->blocks[$layer ?? $this->index][$data->name] = new Block;
-		$block->contentType = implode($node->context);
+		$block->contentType = implode('', $node->context);
 		$block->comment = "{{$node->name} {$node->args}} on line {$node->startLine}";
 		return $block;
 	}
 
 
-	private function extractMethod(MacroNode $node, Block $block, string $params = null): void
+	private function extractMethod(MacroNode $node, Block $block, ?string $params = null): void
 	{
 		if (preg_match('#\$|n:#', $node->content)) {
 			$node->content = '<?php extract(' . ($node->name === 'block' && $node->closest(['embed']) ? 'end($this->varStack)' : '$this->params') . ');'
@@ -558,6 +581,7 @@ class BlockMacros extends MacroSet
 				. 'unset($ʟ_args);?>'
 				. $node->content;
 		}
+
 		$block->code = preg_replace('#^\n+|(?<=\n)[ \t]+$#D', '', $node->content);
 		$node->content = substr_replace($node->content, $node->openingCode . "\n", strspn($node->content, "\n"), strlen($block->code));
 		$node->openingCode = '<?php ?>';
@@ -576,6 +600,9 @@ class BlockMacros extends MacroSet
 		$this->blocks[$this->index] = [];
 
 		[$name, $mod] = $node->tokenizer->fetchWordWithModifier(['block', 'file']);
+		if (!$mod && preg_match('~([\'"])[\w-]+\\1$~DA', $name)) {
+			trigger_error("Change {embed $name} to {embed file $name} for clarity (on line $node->startLine)", E_USER_NOTICE);
+		}
 		$mod = $mod ?? (preg_match('~^[\w-]+$~DA', $name) ? 'block' : 'file');
 
 		$node->openingCode = $writer->write(
@@ -591,7 +618,7 @@ class BlockMacros extends MacroSet
 				try { $this->createTemplate(%word, %node.array, "embed")->renderToContentType(%var) %node.line; }
 				finally { $this->leaveBlockLayer(); } ?>' . "\n",
 				$name,
-				implode($node->context)
+				implode('', $node->context)
 			);
 
 		} else {
@@ -601,7 +628,7 @@ class BlockMacros extends MacroSet
 				try { $this->renderBlock(%raw, %node.array, %var) %node.line; }
 				finally { $this->leaveBlockLayer(); } ?>' . "\n",
 				$this->isDynamic($name) ? $writer->formatWord($name) : PhpHelpers::dump($name),
-				implode($node->context)
+				implode('', $node->context)
 			);
 		}
 	}
@@ -624,15 +651,17 @@ class BlockMacros extends MacroSet
 	public function macroIfset(MacroNode $node, PhpWriter $writer)
 	{
 		$node->validate(true);
-		if (!preg_match('~(#|block\s)|[\w-]+$~DA', $node->args)) {
+		if (!preg_match('~#|\w~A', $node->args)) {
 			return false;
 		}
+
 		$list = [];
-		while ([$name, $block] = $node->tokenizer->fetchWordWithModifier('block')) {
-			$list[] = $block || preg_match('~#|[\w-]+$~DA', $name)
-				? '$this->hasBlock(' . $writer->formatWord(ltrim($name, '#')) . ')'
+		while ([$name, $block] = $node->tokenizer->fetchWordWithModifier(['block', '#'])) {
+			$list[] = $block || preg_match('~\w[\w-]*$~DA', $name)
+				? '$this->hasBlock(' . $writer->formatWord($name) . ')'
 				: 'isset(' . $writer->formatArgs(new Latte\MacroTokens($name)) . ')';
 		}
+
 		return $writer->write(($node->name === 'elseifset' ? '} else' : '') . 'if (%raw) %node.line {', implode(' && ', $list));
 	}
 
@@ -646,6 +675,7 @@ class BlockMacros extends MacroSet
 		while (isset($methods[$lower . $counter])) {
 			$counter++;
 		}
+
 		return $name . $counter;
 	}
 

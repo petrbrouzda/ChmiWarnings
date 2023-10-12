@@ -18,12 +18,16 @@ use Latte\Helpers;
  * Filter executor.
  * @internal
  */
+#[\AllowDynamicProperties]
 class FilterExecutor
 {
+	/** @var string[] */
+	public $_origNames = [];
+
 	/** @var callable[] */
 	private $_dynamic = [];
 
-	/** @var array<string, array{callable, ?bool}>  [name => [callback, FilterInfo aware] */
+	/** @var array<string, array{callable, ?bool}> */
 	private $_static = [];
 
 
@@ -36,10 +40,12 @@ class FilterExecutor
 		if ($name === null) {
 			array_unshift($this->_dynamic, $callback);
 		} else {
-			$name = strtolower($name);
-			$this->_static[$name] = [$callback, null];
-			unset($this->$name);
+			$lower = strtolower($name);
+			$this->_static[$lower] = [$callback, null, $name];
+			$this->_origNames[$name] = $lower;
+			unset($this->$lower);
 		}
+
 		return $this;
 	}
 
@@ -72,6 +78,7 @@ class FilterExecutor
 						$args[1] = $args[1]->__toString();
 						$info->contentType = Engine::CONTENT_HTML;
 					}
+
 					$res = $callback(...$args);
 					return $info->contentType === Engine::CONTENT_HTML
 						? new Html($res)
@@ -83,7 +90,7 @@ class FilterExecutor
 		}
 
 		return $this->$lname = function (...$args) use ($lname, $name) { // dynamic filter
-			array_unshift($args, $lname);
+			array_unshift($args, $name);
 			foreach ($this->_dynamic as $filter) {
 				$res = $filter(...$args);
 				if ($res !== null) {
@@ -93,6 +100,7 @@ class FilterExecutor
 					return ($this->$name)(...func_get_args());
 				}
 			}
+
 			$hint = ($t = Helpers::getSuggestion(array_keys($this->_static), $name))
 				? ", did you mean '$t'?"
 				: '.';
@@ -121,21 +129,25 @@ class FilterExecutor
 		if ($info->contentType === Engine::CONTENT_HTML && $args[0] instanceof HtmlStringable) {
 			$args[0] = $args[0]->__toString();
 		}
+
 		if ($aware) { // FilterInfo aware filter
 			array_unshift($args, $info);
 			return $callback(...$args);
 		}
+
 		// classic filter
 		if ($info->contentType !== Engine::CONTENT_TEXT) {
 			throw new Latte\RuntimeException("Filter |$name is called with incompatible content type " . strtoupper($info->contentType)
 				. ($info->contentType === Engine::CONTENT_HTML ? ', try to prepend |stripHtml.' : '.'));
 		}
+
 		$res = ($this->$name)(...$args);
 		if ($res instanceof HtmlStringable) {
 			trigger_error("Filter |$name should be changed to content-aware filter.");
 			$info->contentType = Engine::CONTENT_HTML;
 			$res = $res->__toString();
 		}
+
 		return $res;
 	}
 

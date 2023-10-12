@@ -51,7 +51,7 @@ class ConsolePrinter implements Tester\Runner\OutputHandler
 	public function __construct(
 		Runner $runner,
 		bool $displaySkipped = false,
-		string $file = null,
+		?string $file = null,
 		bool $ciderMode = false
 	) {
 		$this->runner = $runner;
@@ -96,6 +96,7 @@ class ConsolePrinter implements Tester\Runner\OutputHandler
 				if ($i !== $prev++) {
 					break;
 				}
+
 				$this->baseDir .= $part . DIRECTORY_SEPARATOR;
 			}
 		}

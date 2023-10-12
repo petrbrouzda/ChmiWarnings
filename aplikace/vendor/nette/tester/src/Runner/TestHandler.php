@@ -20,7 +20,7 @@ use Tester\TestCase;
  */
 class TestHandler
 {
-	private const HTTP_OK = 200;
+	private const HttpOk = 200;
 
 	/** @var Runner */
 	private $runner;
@@ -71,6 +71,7 @@ class TestHandler
 						}
 					}
 				}
+
 				$tests = $prepared;
 			}
 		}
@@ -87,7 +88,7 @@ class TestHandler
 		$test = $job->getTest();
 		$annotations = $this->getAnnotations($test->getFile())[0] += [
 			'exitcode' => Job::CODE_OK,
-			'httpcode' => self::HTTP_OK,
+			'httpcode' => self::HttpOk,
 		];
 
 		foreach (get_class_methods($this) as $method) {
@@ -103,6 +104,7 @@ class TestHandler
 				}
 			}
 		}
+
 		$this->runner->finishTest($test->withResult(Test::PASSED, $test->message, $job->getDuration()));
 	}
 
@@ -119,6 +121,7 @@ class TestHandler
 			&& version_compare($matches[2], $interpreter->getVersion(), $matches[1] ?: '>=')) {
 			return $test->withResult(Test::SKIPPED, "Requires PHP $version.");
 		}
+
 		return null;
 	}
 
@@ -130,6 +133,7 @@ class TestHandler
 				return $test->withResult(Test::SKIPPED, "Requires PHP extension $extension.");
 			}
 		}
+
 		return null;
 	}
 
@@ -146,7 +150,10 @@ class TestHandler
 		try {
 			[$dataFile, $query, $optional] = Tester\DataProvider::parseAnnotation($provider, $test->getFile());
 			$data = Tester\DataProvider::load($dataFile, $query);
-		} catch (\Exception $e) {
+			if (count($data) < 1) {
+				throw new \Exception("No records in data provider file '{$test->getFile()}'" . ($query ? " for query '$query'" : '') . '.');
+			}
+		} catch (\Throwable $e) {
 			return $test->withResult(empty($optional) ? Test::FAILED : Test::SKIPPED, $e->getMessage());
 		}
 
@@ -180,6 +187,7 @@ class TestHandler
 						break;
 					}
 				}
+
 				if ($valid) {
 					$methods = $cache['methods'];
 				}
@@ -187,7 +195,7 @@ class TestHandler
 		}
 
 		if ($methods === null) {
-			$job = new Job($test->withArguments(['method' => TestCase::LIST_METHODS]), $interpreter, $this->runner->getEnvironmentVariables());
+			$job = new Job($test->withArguments(['method' => TestCase::ListMethods]), $interpreter, $this->runner->getEnvironmentVariables());
 			$job->run();
 
 			if (in_array($job->getExitCode(), [Job::CODE_ERROR, Job::CODE_FAIL, Job::CODE_SKIP], true)) {
@@ -199,12 +207,14 @@ class TestHandler
 			if (!preg_match('#^TestCase:([^\n]+)$#m', $stdout, $m)) {
 				return $test->withResult(Test::FAILED, "Cannot list TestCase methods in file '{$test->getFile()}'. Do you call TestCase::run() in it?");
 			}
+
 			$testCaseClass = $m[1];
 
 			preg_match_all('#^Method:([^\n]+)$#m', $stdout, $m);
 			if (count($m[1]) < 1) {
 				return $test->withResult(Test::SKIPPED, "Class $testCaseClass in file '{$test->getFile()}' does not contain test methods.");
 			}
+
 			$methods = $m[1];
 
 			if ($this->tempDir) {
@@ -237,6 +247,7 @@ class TestHandler
 				: '';
 			return $job->getTest()->withResult(Test::FAILED, trim($message . "\n" . $job->getTest()->stdout));
 		}
+
 		return null;
 	}
 
@@ -246,8 +257,9 @@ class TestHandler
 		if (!$this->runner->getInterpreter()->isCgi()) {
 			return null;
 		}
+
 		$headers = $job->getHeaders();
-		$actual = (int) ($headers['Status'] ?? self::HTTP_OK);
+		$actual = (int) ($headers['Status'] ?? self::HttpOk);
 		$code = (int) $code;
 		return $code && $code !== $actual
 			? $job->getTest()->withResult(Test::FAILED, "Exited with HTTP code $actual (expected $code)")
@@ -261,6 +273,7 @@ class TestHandler
 		if (!is_file($file)) {
 			return $job->getTest()->withResult(Test::FAILED, "Missing matching file '$file'.");
 		}
+
 		return $this->assessOutputMatch($job, file_get_contents($file));
 	}
 
@@ -274,6 +287,7 @@ class TestHandler
 			Dumper::saveOutput($job->getTest()->getFile(), $content, '.expected');
 			return $job->getTest()->withResult(Test::FAILED, 'Failed: output should match ' . Dumper::toLine($content));
 		}
+
 		return null;
 	}
 

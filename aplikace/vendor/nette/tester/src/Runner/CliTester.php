@@ -66,6 +66,8 @@ class CliTester
 		$runner->setEnvironmentVariable(Environment::RUNNER, '1');
 		$runner->setEnvironmentVariable(Environment::COLORS, (string) (int) Environment::$useColors);
 
+		$this->installInterruptHandler();
+
 		if ($this->options['--coverage']) {
 			$coverageFile = $this->prepareCodeCoverage($runner);
 		}
@@ -73,6 +75,7 @@ class CliTester
 		if ($this->stdoutFormat !== null) {
 			ob_clean();
 		}
+
 		ob_end_flush();
 
 		if ($this->options['--watch']) {
@@ -97,7 +100,7 @@ class CliTester
 		echo <<<'XX'
  _____ ___  ___ _____ ___  ___
 |_   _/ __)( __/_   _/ __)| _ )
-  |_| \___ /___) |_| \___ |_|_\  v2.4.0
+  |_| \___ /___) |_| \___ |_|_\  v2.4.3
 
 
 XX;
@@ -127,15 +130,15 @@ Options:
 
 XX
 		, [
-			'-c' => [CommandLine::REALPATH => true],
-			'--watch' => [CommandLine::REPEATABLE => true, CommandLine::REALPATH => true],
-			'--setup' => [CommandLine::REALPATH => true],
-			'--temp' => [CommandLine::REALPATH => true],
-			'paths' => [CommandLine::REPEATABLE => true, CommandLine::VALUE => getcwd()],
+			'-c' => [CommandLine::Realpath => true],
+			'--watch' => [CommandLine::Repeatable => true, CommandLine::Realpath => true],
+			'--setup' => [CommandLine::Realpath => true],
+			'--temp' => [CommandLine::Realpath => true],
+			'paths' => [CommandLine::Repeatable => true, CommandLine::Value => getcwd()],
 			'--debug' => [],
 			'--cider' => [],
-			'--coverage-src' => [CommandLine::REALPATH => true, CommandLine::REPEATABLE => true],
-			'-o' => [CommandLine::REPEATABLE => true, CommandLine::NORMALIZER => function ($arg) use (&$outputFiles) {
+			'--coverage-src' => [CommandLine::Realpath => true, CommandLine::Repeatable => true],
+			'-o' => [CommandLine::Repeatable => true, CommandLine::Normalizer => function ($arg) use (&$outputFiles) {
 				[$format, $file] = explode(':', $arg, 2) + [1 => null];
 
 				if (isset($outputFiles[$file])) {
@@ -147,6 +150,7 @@ XX
 				} elseif ($file === null) {
 					$this->stdoutFormat = $format;
 				}
+
 				$outputFiles[$file] = true;
 
 				return [$format, $file];
@@ -260,6 +264,7 @@ XX
 				require func_get_arg(0);
 			})($this->options['--setup']);
 		}
+
 		return $runner;
 	}
 
@@ -297,10 +302,12 @@ XX
 		if (!in_array($this->stdoutFormat, ['none', 'tap', 'junit'], true)) {
 			echo 'Generating code coverage report... ';
 		}
+
 		if (filesize($file) === 0) {
 			echo 'failed. Coverage file is empty. Do you call Tester\Environment::setup() in tests?' . "\n";
 			return;
 		}
+
 		$generator = pathinfo($file, PATHINFO_EXTENSION) === 'xml'
 			? new CodeCoverage\Generators\CloverXMLGenerator($file, $this->options['--coverage-src'])
 			: new CodeCoverage\Generators\HtmlGenerator($file, $this->options['--coverage-src']);
@@ -322,6 +329,7 @@ XX
 					}
 				}
 			}
+
 			if ($state !== $prev) {
 				$prev = $state;
 				try {
@@ -329,6 +337,7 @@ XX
 				} catch (\ErrorException $e) {
 					$this->displayException($e);
 				}
+
 				echo "\n";
 				$time = time();
 			}
@@ -341,6 +350,7 @@ XX
 			} else {
 				$idle .= ' sec';
 			}
+
 			echo 'Watching ' . implode(', ', $this->options['--watch']) . " (idle for $idle) " . str_repeat('.', ++$counter % 5) . "    \r";
 			sleep(2);
 		}
@@ -356,11 +366,15 @@ XX
 			if (($severity & error_reporting()) === $severity) {
 				throw new \ErrorException($message, 0, $severity, $file, $line);
 			}
+
 			return false;
 		});
 
 		set_exception_handler(function (\Throwable $e) {
-			$this->displayException($e);
+			if (!$e instanceof InterruptException) {
+				$this->displayException($e);
+			}
+
 			exit(2);
 		});
 	}
@@ -373,5 +387,22 @@ XX
 			? Dumper::dumpException($e)
 			: Dumper::color('white/red', 'Error: ' . $e->getMessage());
 		echo "\n";
+	}
+
+
+	private function installInterruptHandler(): void
+	{
+		if (function_exists('pcntl_signal')) {
+			pcntl_signal(SIGINT, function (): void {
+				pcntl_signal(SIGINT, SIG_DFL);
+				throw new InterruptException;
+			});
+			pcntl_async_signals(true);
+
+		} elseif (function_exists('sapi_windows_set_ctrl_handler') && PHP_SAPI === 'cli') {
+			sapi_windows_set_ctrl_handler(function (): void {
+				throw new InterruptException;
+			});
+		}
 	}
 }

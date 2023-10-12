@@ -1,4 +1,4 @@
-/**
+/**!
  * NetteForms - simple form validation.
  *
  * This file is part of the Nette Framework (https://nette.org)
@@ -34,7 +34,7 @@
 	var toggleListeners = new window.WeakMap();
 
 	Nette.formErrors = [];
-	Nette.version = '3.0';
+	Nette.version = '3.3.0';
 	Nette.invalidNumberMessage = 'Please enter a valid value.';
 
 
@@ -187,13 +187,6 @@
 			}
 		}
 
-		if (elem.type === 'number' && !elem.validity.valid) {
-			if (top && !onlyCheck) {
-				Nette.addError(elem, Nette.invalidNumberMessage);
-			}
-			return false;
-		}
-
 		return true;
 	};
 
@@ -230,6 +223,13 @@
 					continue;
 				}
 				radios[elem.name] = true;
+
+			} else if (elem.type === 'number' && elem.validity.badInput && !Nette.isDisabled(elem)) {
+				if (onlyCheck) {
+					return false;
+				}
+				Nette.addError(elem, Nette.invalidNumberMessage);
+				continue;
 			}
 
 			if ((scope && !elem.name.replace(/]\[|\[|]|$/g, '-').match(scope)) || Nette.isDisabled(elem)) {
@@ -240,6 +240,7 @@
 				return false;
 			}
 		}
+
 		var success = !Nette.formErrors.length;
 		Nette.showFormErrors(form, Nette.formErrors);
 		return success;
@@ -294,12 +295,43 @@
 		}
 
 		if (messages.length) {
-			alert(messages.join('\n'));
-
-			if (focusElem) {
-				focusElem.focus();
-			}
+			Nette.showModal(messages.join('\n'), function () {
+				if (focusElem) {
+					focusElem.focus();
+				}
+			});
 		}
+	};
+
+
+	/**
+	 * Display modal window.
+	 */
+	Nette.showModal = function(message, onclose) {
+		var dialog = document.createElement('dialog');
+
+		if (!dialog.showModal) {
+			alert(message);
+			onclose();
+			return;
+		}
+
+		var style = document.createElement('style');
+		style.innerText = '.netteFormsModal { text-align: center; margin: auto; border: 2px solid black; padding: 1rem } .netteFormsModal button { padding: .1em 2em }';
+
+		var button = document.createElement('button');
+		button.innerText = 'OK';
+		button.onclick = function () {
+			dialog.remove();
+			onclose();
+		};
+
+		dialog.setAttribute('class', 'netteFormsModal');
+		dialog.innerText = message + '\n\n';
+		dialog.appendChild(style);
+		dialog.appendChild(button);
+		document.body.appendChild(dialog);
+		dialog.showModal();
 	};
 
 
@@ -307,6 +339,10 @@
 	 * Validates single rule.
 	 */
 	Nette.validateRule = function(elem, op, arg, value) {
+		if (elem.type === 'number' && elem.validity.badInput) {
+			return op === 'filled';
+		}
+
 		value = value === undefined ? {value: Nette.getEffectiveValue(elem, true)} : value;
 
 		if (op.charAt(0) === ':') {
@@ -331,9 +367,6 @@
 
 	Nette.validators = {
 		filled: function(elem, arg, val) {
-			if (elem.type === 'number' && elem.validity.badInput) {
-				return true;
-			}
 			return val !== '' && val !== false && val !== null
 				&& (!Array.isArray(val) || !!val.length)
 				&& (!window.FileList || !(val instanceof window.FileList) || val.length);
@@ -352,13 +385,13 @@
 				return null;
 			}
 
-			function toString(val) {
+			var toString = function(val) {
 				if (typeof val === 'number' || typeof val === 'string') {
 					return '' + val;
 				} else {
 					return val === true ? '1' : '';
 				}
-			}
+			};
 
 			val = Array.isArray(val) ? val : [val];
 			arg = Array.isArray(arg) ? arg : [arg];
@@ -379,35 +412,14 @@
 		},
 
 		minLength: function(elem, arg, val) {
-			if (elem.type === 'number') {
-				if (elem.validity.tooShort) {
-					return false;
-				} else if (elem.validity.badInput) {
-					return null;
-				}
-			}
 			return val.length >= arg;
 		},
 
 		maxLength: function(elem, arg, val) {
-			if (elem.type === 'number') {
-				if (elem.validity.tooLong) {
-					return false;
-				} else if (elem.validity.badInput) {
-					return null;
-				}
-			}
 			return val.length <= arg;
 		},
 
 		length: function(elem, arg, val) {
-			if (elem.type === 'number') {
-				if (elem.validity.tooShort || elem.validity.tooLong) {
-					return false;
-				} else if (elem.validity.badInput) {
-					return null;
-				}
-			}
 			arg = Array.isArray(arg) ? arg : [arg, arg];
 			return (arg[0] === null || val.length >= arg[0]) && (arg[1] === null || val.length <= arg[1]);
 		},
@@ -465,23 +477,14 @@
 		},
 
 		numeric: function(elem, arg, val) {
-			if (elem.type === 'number' && elem.validity.badInput) {
-				return false;
-			}
 			return (/^[0-9]+$/).test(val);
 		},
 
 		integer: function(elem, arg, val) {
-			if (elem.type === 'number' && elem.validity.badInput) {
-				return false;
-			}
 			return (/^-?[0-9]+$/).test(val);
 		},
 
 		'float': function(elem, arg, val, value) {
-			if (elem.type === 'number' && elem.validity.badInput) {
-				return false;
-			}
 			val = val.replace(/ +/g, '').replace(/,/g, '.');
 			if ((/^-?[0-9]*\.?[0-9]+$/).test(val)) {
 				value.value = val;
@@ -491,35 +494,14 @@
 		},
 
 		min: function(elem, arg, val) {
-			if (elem.type === 'number') {
-				if (elem.validity.rangeUnderflow) {
-					return false;
-				} else if (elem.validity.badInput) {
-					return null;
-				}
-			}
 			return arg === null || parseFloat(val) >= arg;
 		},
 
 		max: function(elem, arg, val) {
-			if (elem.type === 'number') {
-				if (elem.validity.rangeOverflow) {
-					return false;
-				} else if (elem.validity.badInput) {
-					return null;
-				}
-			}
 			return arg === null || parseFloat(val) <= arg;
 		},
 
 		range: function(elem, arg, val) {
-			if (elem.type === 'number') {
-				if (elem.validity.rangeUnderflow || elem.validity.rangeOverflow) {
-					return false;
-				} else if (elem.validity.badInput) {
-					return null;
-				}
-			}
 			return Array.isArray(arg) ?
 				((arg[0] === null || parseFloat(val) >= arg[0]) && (arg[1] === null || parseFloat(val) <= arg[1])) : null;
 		},
@@ -739,6 +721,12 @@
 				e.stopPropagation();
 				e.preventDefault();
 			}
+		});
+
+		form.addEventListener('reset', function() {
+			setTimeout(function() {
+				Nette.toggleForm(form);
+			});
 		});
 	};
 

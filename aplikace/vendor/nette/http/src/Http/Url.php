@@ -200,6 +200,7 @@ class Url implements \JsonSerializable
 		if ($this->host && substr($this->path, 0, 1) !== '/') {
 			$this->path = '/' . $this->path;
 		}
+
 		return $this;
 	}
 
@@ -252,6 +253,7 @@ class Url implements \JsonSerializable
 		if (func_num_args() > 1) {
 			trigger_error(__METHOD__ . '() parameter $default is deprecated, use operator ??', E_USER_DEPRECATED);
 		}
+
 		return $this->query[$name] ?? null;
 	}
 
@@ -349,9 +351,11 @@ class Url implements \JsonSerializable
 		ksort($query);
 		$query2 = $this->query;
 		ksort($query2);
+		$host = rtrim($url->host, '.');
+		$host2 = rtrim($this->host, '.');
 		return $url->scheme === $this->scheme
-			&& (!strcasecmp($url->host, $this->host)
-				|| self::idnHostToUnicode($url->host) === self::idnHostToUnicode($this->host))
+			&& (!strcasecmp($host, $host2)
+				|| self::idnHostToUnicode($host) === self::idnHostToUnicode($host2))
 			&& $url->getPort() === $this->getPort()
 			&& $url->user === $this->user
 			&& $url->password === $this->password
@@ -373,6 +377,7 @@ class Url implements \JsonSerializable
 			function (array $m): string { return rawurlencode($m[0]); },
 			self::unescape($this->path, '%/')
 		);
+		$this->host = rtrim($this->host, '.');
 		$this->host = self::idnHostToUnicode(strtolower($this->host));
 		return $this;
 	}
@@ -405,9 +410,11 @@ class Url implements \JsonSerializable
 		if (strpos($host, '--') === false) { // host does not contain IDN
 			return $host;
 		}
+
 		if (function_exists('idn_to_utf8') && defined('INTL_IDNA_VARIANT_UTS46')) {
 			return idn_to_utf8($host, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46) ?: $host;
 		}
+
 		trigger_error('PHP extension idn is not loaded or is too old', E_USER_WARNING);
 	}
 
@@ -427,6 +434,7 @@ class Url implements \JsonSerializable
 				$s
 			);
 		}
+
 		return rawurldecode($s);
 	}
 

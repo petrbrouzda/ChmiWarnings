@@ -18,15 +18,17 @@ use Nette;
  * @property   int $page
  * @property-read int $firstPage
  * @property-read int|null $lastPage
+ * @property-read int<0,max> $firstItemOnPage
+ * @property-read int<0,max> $lastItemOnPage
  * @property   int $base
  * @property-read bool $first
  * @property-read bool $last
- * @property-read int|null $pageCount
- * @property   int $itemsPerPage
- * @property   int|null $itemCount
- * @property-read int $offset
- * @property-read int|null $countdownOffset
- * @property-read int $length
+ * @property-read int<0,max>|null $pageCount
+ * @property   positive-int $itemsPerPage
+ * @property   int<0,max>|null $itemCount
+ * @property-read int<0,max> $offset
+ * @property-read int<0,max>|null $countdownOffset
+ * @property-read int<0,max> $length
  */
 class Paginator
 {
@@ -86,6 +88,28 @@ class Paginator
 
 
 	/**
+	 * Returns the sequence number of the first element on the page
+	 * @return int<0, max>
+	 */
+	public function getFirstItemOnPage(): int
+	{
+		return $this->itemCount !== 0
+			? $this->offset + 1
+			: 0;
+	}
+
+
+	/**
+	 * Returns the sequence number of the last element on the page
+	 * @return int<0, max>
+	 */
+	public function getLastItemOnPage(): int
+	{
+		return $this->offset + $this->length;
+	}
+
+
+	/**
 	 * Sets first page (base) number.
 	 * @return static
 	 */
@@ -107,6 +131,7 @@ class Paginator
 
 	/**
 	 * Returns zero-based page number.
+	 * @return int<0, max>
 	 */
 	protected function getPageIndex(): int
 	{
@@ -139,6 +164,7 @@ class Paginator
 
 	/**
 	 * Returns the total number of pages.
+	 * @return int<0, max>|null
 	 */
 	public function getPageCount(): ?int
 	{
@@ -161,6 +187,7 @@ class Paginator
 
 	/**
 	 * Returns the number of items to display on a single page.
+	 * @return positive-int
 	 */
 	public function getItemsPerPage(): int
 	{
@@ -172,7 +199,7 @@ class Paginator
 	 * Sets the total number of items.
 	 * @return static
 	 */
-	public function setItemCount(int $itemCount = null)
+	public function setItemCount(?int $itemCount = null)
 	{
 		$this->itemCount = $itemCount === null ? null : max(0, $itemCount);
 		return $this;
@@ -181,6 +208,7 @@ class Paginator
 
 	/**
 	 * Returns the total number of items.
+	 * @return int<0, max>|null
 	 */
 	public function getItemCount(): ?int
 	{
@@ -190,6 +218,7 @@ class Paginator
 
 	/**
 	 * Returns the absolute index of the first item on current page.
+	 * @return int<0, max>
 	 */
 	public function getOffset(): int
 	{
@@ -199,6 +228,7 @@ class Paginator
 
 	/**
 	 * Returns the absolute index of the first item on current page in countdown paging.
+	 * @return int<0, max>|null
 	 */
 	public function getCountdownOffset(): ?int
 	{
@@ -210,6 +240,7 @@ class Paginator
 
 	/**
 	 * Returns the number of items on current page.
+	 * @return int<0, max>
 	 */
 	public function getLength(): int
 	{

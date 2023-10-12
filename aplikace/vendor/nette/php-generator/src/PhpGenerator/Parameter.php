@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Nette\PhpGenerator;
 
 use Nette;
+use Nette\Utils\Type;
 
 
 /**
@@ -56,29 +57,33 @@ class Parameter
 	/** @return static */
 	public function setType(?string $type): self
 	{
-		$this->type = $type;
+		$this->type = Helpers::validateType($type, $this->nullable);
 		return $this;
 	}
 
 
-	public function getType(): ?string
+	/**
+	 * @return Type|string|null
+	 */
+	public function getType(bool $asObject = false)
 	{
-		return $this->type;
+		return $asObject && $this->type
+			? Type::fromString($this->type)
+			: $this->type;
 	}
 
 
 	/** @deprecated  use setType() */
 	public function setTypeHint(?string $type): self
 	{
-		$this->type = $type;
-		return $this;
+		return $this->setType($type);
 	}
 
 
 	/** @deprecated  use getType() */
 	public function getTypeHint(): ?string
 	{
-		return $this->type;
+		return $this->getType();
 	}
 
 
@@ -126,5 +131,10 @@ class Parameter
 	public function hasDefaultValue(): bool
 	{
 		return $this->hasDefaultValue;
+	}
+
+
+	public function validate(): void
+	{
 	}
 }

@@ -42,7 +42,7 @@ class GroupedSelection extends Selection
 		string $tableName,
 		string $column,
 		Selection $refTable,
-		Nette\Caching\IStorage $cacheStorage = null
+		?Nette\Caching\IStorage $cacheStorage = null
 	) {
 		$this->refTable = $refTable;
 		$this->column = $column;
@@ -96,7 +96,7 @@ class GroupedSelection extends Selection
 	/**
 	 * @return mixed
 	 */
-	public function aggregation(string $function)
+	public function aggregation(string $function, ?string $groupFunction = null)
 	{
 		$aggregation = &$this->getRefTable($refPath)->aggregation[$refPath . $function . $this->sqlBuilder->getSelectQueryHash($this->getPreviousAccessedColumns())];
 
@@ -105,12 +105,21 @@ class GroupedSelection extends Selection
 
 			$selection = $this->createSelectionInstance();
 			$selection->getSqlBuilder()->importConditions($this->getSqlBuilder());
-			$selection->select($function);
-			$selection->select("$this->name.$this->column");
-			$selection->group("$this->name.$this->column");
 
-			foreach ($selection as $row) {
-				$aggregation[$row[$this->column]] = $row;
+			if ($groupFunction && $selection->getSqlBuilder()->importGroupConditions($this->getSqlBuilder())) {
+				$selection->select("$function AS aggregate, $this->name.$this->column AS groupname");
+				$selection->group($selection->getSqlBuilder()->getGroup() . ", $this->name.$this->column");
+				$query = "SELECT $groupFunction(aggregate) AS groupaggregate, groupname FROM (" . $selection->getSql() . ') AS aggregates GROUP BY groupname';
+				foreach ($this->context->query($query, ...$selection->getSqlBuilder()->getParameters()) as $row) {
+					$aggregation[$row->groupname] = $row;
+				}
+			} else {
+				$selection->select($function);
+				$selection->select("$this->name.$this->column");
+				$selection->group("$this->name.$this->column");
+				foreach ($selection as $row) {
+					$aggregation[$row[$this->column]] = $row;
+				}
 			}
 		}
 
@@ -119,11 +128,12 @@ class GroupedSelection extends Selection
 				return $val;
 			}
 		}
+
 		return 0;
 	}
 
 
-	public function count(string $column = null): int
+	public function count(?string $column = null): int
 	{
 		$return = parent::count($column);
 		return $return ?? 0;
@@ -152,6 +162,7 @@ class GroupedSelection extends Selection
 			if ($limit && $rows > 1) {
 				$this->sqlBuilder->setLimit(null, null);
 			}
+
 			parent::execute();
 			$this->sqlBuilder->setLimit($limit, null);
 			$data = [];
@@ -170,6 +181,7 @@ class GroupedSelection extends Selection
 				} else {
 					unset($this->rows[$key]);
 				}
+
 				$skip++;
 				unset($ref, $skip);
 			}
@@ -185,6 +197,7 @@ class GroupedSelection extends Selection
 			foreach ($this->data as $row) {
 				$row->setTable($this); // injects correct parent GroupedSelection
 			}
+
 			reset($this->data);
 		}
 	}

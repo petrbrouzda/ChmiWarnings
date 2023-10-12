@@ -33,17 +33,6 @@ class Dumper
 	 */
 	public static function toLine($var): string
 	{
-		static $table;
-		if ($table === null) {
-			foreach (array_merge(range("\x00", "\x1F"), range("\x7F", "\xFF")) as $ch) {
-				$table[$ch] = '\x' . str_pad(dechex(ord($ch)), 2, '0', STR_PAD_LEFT);
-			}
-			$table['\\'] = '\\\\';
-			$table["\r"] = '\r';
-			$table["\n"] = '\n';
-			$table["\t"] = '\t';
-		}
-
 		if (is_bool($var)) {
 			return $var ? 'TRUE' : 'FALSE';
 
@@ -62,9 +51,8 @@ class Dumper
 			} elseif (strlen($var) > self::$maxLength) {
 				$var = substr($var, 0, self::$maxLength) . '...';
 			}
-			return preg_match('#[^\x09\x0A\x0D\x20-\x7E\xA0-\x{10FFFF}]#u', $var) || preg_last_error()
-				? '"' . strtr($var, $table) . '"'
-				: "'$var'";
+
+			return self::encodeStringLine($var);
 
 		} elseif (is_array($var)) {
 			$out = '';
@@ -75,10 +63,12 @@ class Dumper
 					$out .= '...';
 					break;
 				}
+
 				$out .= ($k === $counter ? '' : self::toLine($k) . ' => ')
 					. (is_array($v) && $v ? '[...]' : self::toLine($v));
 				$counter = is_int($k) ? max($k + 1, $counter) : $counter;
 			}
+
 			return "[$out]";
 
 		} elseif ($var instanceof \Throwable) {
@@ -146,20 +136,10 @@ class Dumper
 		} elseif ($var === null) {
 			return 'null';
 
-		} elseif (is_string($var) && (preg_match('#[^\x09\x20-\x7E\xA0-\x{10FFFF}]#u', $var) || preg_last_error())) {
-			static $table;
-			if ($table === null) {
-				foreach (array_merge(range("\x00", "\x1F"), range("\x7F", "\xFF")) as $ch) {
-					$table[$ch] = '\x' . str_pad(dechex(ord($ch)), 2, '0', STR_PAD_LEFT);
-				}
-				$table['\\'] = '\\\\';
-				$table["\r"] = '\r';
-				$table["\n"] = '\n';
-				$table["\t"] = '\t';
-				$table['$'] = '\$';
-				$table['"'] = '\"';
-			}
-			return '"' . strtr($var, $table) . '"';
+		} elseif (is_string($var)) {
+			$res = self::encodeStringPhp($var);
+			$line += substr_count($res, "\n");
+			return $res;
 
 		} elseif (is_array($var)) {
 			$space = str_repeat("\t", $level);
@@ -168,6 +148,7 @@ class Dumper
 			if ($marker === null) {
 				$marker = uniqid("\x00", true);
 			}
+
 			if (empty($var)) {
 				$out = '';
 
@@ -190,12 +171,14 @@ class Dumper
 						$line++;
 					}
 				}
+
 				unset($var[$marker]);
 				if (strpos($outShort, "\n") === false && strlen($outShort) < self::$maxLength) {
 					$line = $oldLine;
 					$out = $outShort;
 				}
 			}
+
 			return '[' . $out . ']';
 
 		} elseif ($var instanceof \Closure) {
@@ -206,6 +189,7 @@ class Dumper
 			if (($rc = new \ReflectionObject($var))->isAnonymous()) {
 				return "/* Anonymous class defined in file {$rc->getFileName()} on line {$rc->getStartLine()} */";
 			}
+
 			$arr = (array) $var;
 			$space = str_repeat("\t", $level);
 			$class = get_class($var);
@@ -228,11 +212,14 @@ class Dumper
 					if (isset($k[0]) && $k[0] === "\x00") {
 						$k = substr($k, strrpos($k, "\x00") + 1);
 					}
+
 					$out .= "$space\t" . self::_toPhp($k, $list, $level + 1, $line) . ' => ' . self::_toPhp($v, $list, $level + 1, $line) . ",\n";
 					$line++;
 				}
+
 				$out .= $space;
 			}
+
 			$hash = self::hash($var);
 			return $class === 'stdClass'
 				? "(object) /* $hash */ [$out]"
@@ -242,9 +229,72 @@ class Dumper
 			return '/* resource ' . get_resource_type($var) . ' */';
 
 		} else {
-			$res = var_export($var, true);
-			$line += substr_count($res, "\n");
-			return $res;
+			return var_export($var, true);
+		}
+	}
+
+
+	private static function encodeStringPhp(string $s): string
+	{
+		$special = [
+			"\r" => '\r',
+			"\n" => '\n',
+			"\t" => "\t",
+			"\e" => '\e',
+			'\\' => '\\\\',
+		];
+		$utf8 = preg_match('##u', $s);
+		$escaped = preg_replace_callback(
+			$utf8 ? '#[\p{C}\\\\]#u' : '#[\x00-\x1F\x7F-\xFF\\\\]#',
+			function ($m) use ($special) {
+				return $special[$m[0]] ?? (strlen($m[0]) === 1
+						? '\x' . str_pad(strtoupper(dechex(ord($m[0]))), 2, '0', STR_PAD_LEFT) . ''
+						: '\u{' . strtoupper(ltrim(dechex(self::utf8Ord($m[0])), '0')) . '}');
+			},
+			$s
+		);
+		return $s === str_replace('\\\\', '\\', $escaped)
+			? "'" . preg_replace('#\'|\\\\(?=[\'\\\\]|$)#D', '\\\\$0', $s) . "'"
+			: '"' . addcslashes($escaped, '"$') . '"';
+	}
+
+
+	private static function encodeStringLine(string $s): string
+	{
+		$special = [
+			"\r" => "\\r\r",
+			"\n" => "\\n\n",
+			"\t" => "\\t\t",
+			"\e" => '\\e',
+			"'" => "'",
+		];
+		$utf8 = preg_match('##u', $s);
+		$escaped = preg_replace_callback(
+			$utf8 ? '#[\p{C}\']#u' : '#[\x00-\x1F\x7F-\xFF\']#',
+			function ($m) use ($special) {
+				return "\e[22m"
+					. ($special[$m[0]] ?? (strlen($m[0]) === 1
+						? '\x' . str_pad(strtoupper(dechex(ord($m[0]))), 2, '0', STR_PAD_LEFT)
+						: '\u{' . strtoupper(ltrim(dechex(self::utf8Ord($m[0])), '0')) . '}'))
+					. "\e[1m";
+			},
+			$s
+		);
+		return "'" . $escaped . "'";
+	}
+
+
+	private static function utf8Ord(string $c): int
+	{
+		$ord0 = ord($c[0]);
+		if ($ord0 < 0x80) {
+			return $ord0;
+		} elseif ($ord0 < 0xE0) {
+			return ($ord0 << 6) + ord($c[1]) - 0x3080;
+		} elseif ($ord0 < 0xF0) {
+			return ($ord0 << 12) + (ord($c[1]) << 6) + ord($c[2]) - 0xE2080;
+		} else {
+			return ($ord0 << 18) + (ord($c[1]) << 12) + (ord($c[2]) << 6) + ord($c[3]) - 0x3C82080;
 		}
 	}
 
@@ -265,6 +315,9 @@ class Dumper
 		if ($e instanceof AssertException) {
 			$expected = $e->expected;
 			$actual = $e->actual;
+			$testFile = $e->outputName
+				? dirname($testFile) . '/' . $e->outputName . '.foo'
+				: $testFile;
 
 			if (is_object($expected) || is_array($expected) || (is_string($expected) && strlen($expected) > self::$maxLength)
 				|| is_object($actual) || is_array($actual) || (is_string($actual) && (strlen($actual) > self::$maxLength || preg_match('#[\x00-\x1F]#', $actual)))
@@ -297,6 +350,7 @@ class Dumper
 					? "$m[1]$m[2]\n" . str_repeat(' ', $delta - 3) . "...$m[3]$m[4]"
 					: "$m[1]$m[2]$m[3]\n" . str_repeat(' ', strlen($m[1]) - 4) . "... $m[4]";
 			}
+
 			$message = strtr($message, [
 				'%1' => self::color('yellow') . self::toLine($actual) . self::color('white'),
 				'%2' => self::color('yellow') . self::toLine($expected) . self::color('white'),
@@ -314,6 +368,7 @@ class Dumper
 			if ($e instanceof AssertException && $item['file'] === __DIR__ . DIRECTORY_SEPARATOR . 'Assert.php') {
 				continue;
 			}
+
 			$line = $item['class'] === Assert::class && method_exists($item['class'], $item['function'])
 				&& strpos($tmp = file($item['file'])[$item['line'] - 1], "::$item[function](") ? $tmp : null;
 
@@ -339,6 +394,7 @@ class Dumper
 		if ($e->getPrevious()) {
 			$s .= "\n(previous) " . static::dumpException($e->getPrevious());
 		}
+
 		return $s;
 	}
 
@@ -352,6 +408,7 @@ class Dumper
 		if (!preg_match('#/|\w:#A', self::$dumpDir)) {
 			$path = dirname($testFile) . DIRECTORY_SEPARATOR . $path;
 		}
+
 		@mkdir(dirname($path)); // @ - directory may already exist
 		file_put_contents($path, is_string($content) ? $content : (self::toPhp($content) . "\n"));
 		return $path;
@@ -361,9 +418,9 @@ class Dumper
 	/**
 	 * Applies color to string.
 	 */
-	public static function color(string $color = '', string $s = null): string
+	public static function color(string $color = '', ?string $s = null): string
 	{
-		static $colors = [
+		$colors = [
 			'black' => '0;30', 'gray' => '1;30', 'silver' => '0;37', 'white' => '1;37',
 			'navy' => '0;34', 'blue' => '1;34', 'green' => '0;32', 'lime' => '1;32',
 			'teal' => '0;36', 'aqua' => '1;36', 'maroon' => '0;31', 'red' => '1;31',

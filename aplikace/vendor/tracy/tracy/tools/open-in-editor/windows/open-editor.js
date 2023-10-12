@@ -41,7 +41,7 @@ if (!settings.editor) {
 }
 
 var url = WScript.Arguments(0);
-var match = /^editor:\/\/(open|create|fix)\/\?file=([^&]+)&line=(\d+)(?:&search=([^&]*)&replace=([^&]*))?/.exec(url);
+var match = /^editor:\/\/(open|create|fix)\/?\?file=([^&]+)&line=(\d+)(?:&search=([^&]*)&replace=([^&]*))?/.exec(url);
 if (!match) {
 	WScript.Echo('Unexpected URI ' + url);
 	WScript.Quit();
@@ -68,7 +68,7 @@ for (var id in settings.mappings) {
 
 if (action === 'create' && !fileSystem.FileExists(file)) {
 	shell.Run('cmd /c mkdir "' + fileSystem.GetParentFolderName(file) + '"', 0, 1);
-	fileSystem.CreateTextFile(file);
+	fileSystem.CreateTextFile(file).Write(replace);
 
 } else if (action === 'fix') {
 	var lines = fileSystem.OpenTextFile(file).ReadAll().split('\n');

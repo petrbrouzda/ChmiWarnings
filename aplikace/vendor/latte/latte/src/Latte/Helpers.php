@@ -32,6 +32,7 @@ class Helpers
 		if (!is_callable($callable, false, $text)) {
 			throw new \InvalidArgumentException("Callback '$text' is not callable.");
 		}
+
 		return $callable;
 	}
 
@@ -50,12 +51,17 @@ class Helpers
 				$best = $item;
 			}
 		}
+
 		return $best;
 	}
 
 
 	public static function removeFilter(string &$modifier, string $filter): bool
 	{
+		$tmp = str_replace('|checkUrl', '', $modifier);
+		if ($filter === 'noescape' && preg_match('#\|noescape\s*\S#Di', $tmp)) {
+			trigger_error("Filter |noescape should be placed at the very end in '$tmp'", E_USER_DEPRECATED);
+		}
 		$modifier = preg_replace('#\|(' . $filter . ')\s?(?=\||$)#Di', '', $modifier, -1, $found);
 		return (bool) $found;
 	}

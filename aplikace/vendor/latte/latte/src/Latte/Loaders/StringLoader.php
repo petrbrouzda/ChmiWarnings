@@ -26,7 +26,7 @@ class StringLoader implements Latte\Loader
 	/**
 	 * @param  string[]  $templates
 	 */
-	public function __construct(array $templates = null)
+	public function __construct(?array $templates = null)
 	{
 		$this->templates = $templates;
 	}
@@ -61,6 +61,7 @@ class StringLoader implements Latte\Loader
 		if ($this->templates === null) {
 			throw new \LogicException("Missing template '$name'.");
 		}
+
 		return $name;
 	}
 

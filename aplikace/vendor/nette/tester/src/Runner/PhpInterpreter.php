@@ -44,6 +44,7 @@ class PhpInterpreter
 		if ($proc === false) {
 			throw new \Exception("Cannot run PHP interpreter $path. Use -p option.");
 		}
+
 		fclose($pipes[0]);
 		$output = stream_get_contents($pipes[1]);
 		proc_close($proc);
@@ -52,6 +53,7 @@ class PhpInterpreter
 		if (strpos($output, 'phpdbg') !== false) {
 			$args = ' -qrrb -S cli' . $args;
 		}
+
 		$this->commandLine .= rtrim($args);
 
 		$proc = proc_open(
@@ -87,7 +89,7 @@ class PhpInterpreter
 	/**
 	 * @return static
 	 */
-	public function withPhpIniOption(string $name, string $value = null): self
+	public function withPhpIniOption(string $name, ?string $value = null): self
 	{
 		$me = clone $this;
 		$me->commandLine .= ' -d ' . Helpers::escapeArg($name . ($value === null ? '' : "=$value"));

@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Nette\DI\Extensions;
 
 use Nette;
+use Tracy;
 
 
 /**
@@ -68,31 +69,30 @@ final class DIExtension extends Nette\DI\CompilerExtension
 	}
 
 
-	public function beforeCompile()
-	{
-		if (!$this->config->export->parameters) {
-			$this->getContainerBuilder()->parameters = [];
-		}
-	}
-
-
 	public function afterCompile(Nette\PhpGenerator\ClassType $class)
 	{
 		if ($this->config->parentClass) {
 			$class->setExtends($this->config->parentClass);
 		}
 
+		$this->restrictParameters($class);
 		$this->restrictTags($class);
 		$this->restrictTypes($class);
 
 		if (
 			$this->debugMode &&
-			($this->config->debugger ?? $this->getContainerBuilder()->getByType(\Tracy\Bar::class))
+			($this->config->debugger ?? $this->getContainerBuilder()->getByType(Tracy\Bar::class))
 		) {
 			$this->enableTracyIntegration();
 		}
+	}
 
-		$this->initializeTaggedServices();
+
+	private function restrictParameters(Nette\PhpGenerator\ClassType $class): void
+	{
+		if (!$this->config->export->parameters) {
+			$class->removeMethod('getStaticParameters');
+		}
 	}
 
 
@@ -103,7 +103,7 @@ final class DIExtension extends Nette\DI\CompilerExtension
 		} elseif ($option === false) {
 			$class->removeProperty('tags');
 		} elseif ($prop = $class->getProperties()['tags'] ?? null) {
-			$prop->value = array_intersect_key($prop->value, $this->exportedTags + array_flip((array) $option));
+			$prop->setValue(array_intersect_key($prop->getValue(), $this->exportedTags + array_flip((array) $option)));
 		}
 	}
 
@@ -114,20 +114,12 @@ final class DIExtension extends Nette\DI\CompilerExtension
 		if ($option === true) {
 			return;
 		}
+
 		$prop = $class->getProperty('wiring');
-		$prop->value = array_intersect_key(
-			$prop->value,
+		$prop->setValue(array_intersect_key(
+			$prop->getValue(),
 			$this->exportedTypes + (is_array($option) ? array_flip($option) : [])
-		);
-	}
-
-
-	private function initializeTaggedServices(): void
-	{
-		foreach (array_filter($this->getContainerBuilder()->findByTag('run')) as $name => $on) {
-			trigger_error("Tag 'run' used in service '$name' definition is deprecated.", E_USER_DEPRECATED);
-			$this->initialization->addBody('$this->getService(?);', [$name]);
-		}
+		));
 	}
 
 
@@ -135,7 +127,10 @@ final class DIExtension extends Nette\DI\CompilerExtension
 	{
 		Nette\Bridges\DITracy\ContainerPanel::$compilationTime = $this->time;
 		$this->initialization->addBody($this->getContainerBuilder()->formatPhp('?;', [
-			new Nette\DI\Definitions\Statement('@Tracy\Bar::addPanel', [new Nette\DI\Definitions\Statement(Nette\Bridges\DITracy\ContainerPanel::class)]),
+			new Nette\DI\Definitions\Statement(
+				'@Tracy\Bar::addPanel',
+				[new Nette\DI\Definitions\Statement(Nette\Bridges\DITracy\ContainerPanel::class)]
+			),
 		]));
 	}
 }

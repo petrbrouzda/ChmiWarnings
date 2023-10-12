@@ -8,6 +8,7 @@
 declare(strict_types=1);
 
 namespace Tracy\Dumper;
+use Ds;
 
 
 /**
@@ -27,7 +28,7 @@ final class Exposer
 				$value,
 				(string) $k,
 				$v,
-				Value::PROP_DYNAMIC,
+				Value::PropertyDynamic,
 				$describer->getReferenceId($values, $k)
 			);
 		}
@@ -45,8 +46,8 @@ final class Exposer
 			} else {
 				$value->items[] = [
 					$name,
-					new Value(Value::TYPE_TEXT, 'unset'),
-					$type === Value::PROP_PRIVATE ? $class : $type,
+					new Value(Value::TypeText, 'unset'),
+					$type === Value::PropertyPrivate ? $class : $type,
 				];
 			}
 		}
@@ -59,6 +60,7 @@ final class Exposer
 		if (isset($cache[$class])) {
 			return $cache[$class];
 		}
+
 		$rc = new \ReflectionClass($class);
 		$parentProps = $rc->getParentClass() ? self::getProperties($rc->getParentClass()->getName()) : [];
 		$props = [];
@@ -68,11 +70,11 @@ final class Exposer
 			if ($prop->isStatic() || $prop->getDeclaringClass()->getName() !== $class) {
 				// nothing
 			} elseif ($prop->isPrivate()) {
-				$props["\x00" . $class . "\x00" . $name] = [$name, $class, Value::PROP_PRIVATE];
+				$props["\x00" . $class . "\x00" . $name] = [$name, $class, Value::PropertyPrivate];
 			} elseif ($prop->isProtected()) {
-				$props["\x00*\x00" . $name] = [$name, $class, Value::PROP_PROTECTED];
+				$props["\x00*\x00" . $name] = [$name, $class, Value::PropertyProtected];
 			} else {
-				$props[$name] = [$name, $class, Value::PROP_PUBLIC];
+				$props[$name] = [$name, $class, Value::PropertyPublic];
 				unset($parentProps["\x00*\x00" . $name]);
 			}
 		}
@@ -92,19 +94,31 @@ final class Exposer
 		foreach ($rc->getParameters() as $param) {
 			$params[] = '$' . $param->getName();
 		}
+
 		$value->value .= '(' . implode(', ', $params) . ')';
 
 		$uses = [];
-		$useValue = new Value(Value::TYPE_OBJECT);
+		$useValue = new Value(Value::TypeObject);
 		$useValue->depth = $value->depth + 1;
 		foreach ($rc->getStaticVariables() as $name => $v) {
 			$uses[] = '$' . $name;
 			$describer->addPropertyTo($useValue, '$' . $name, $v);
 		}
+
 		if ($uses) {
 			$useValue->value = implode(', ', $uses);
 			$useValue->collapsed = true;
 			$value->items[] = ['use', $useValue];
+		}
+	}
+
+
+	public static function exposeEnum(\UnitEnum $enum, Value $value, Describer $describer): void
+	{
+		$value->value = get_class($enum) . '::' . $enum->name;
+		if ($enum instanceof \BackedEnum) {
+			$describer->addPropertyTo($value, 'value', $enum->value);
+			$value->collapsed = true;
 		}
 	}
 
@@ -115,7 +129,7 @@ final class Exposer
 		$obj->setFlags(\ArrayObject::STD_PROP_LIST);
 		self::exposeObject($obj, $value, $describer);
 		$obj->setFlags($flags);
-		$describer->addPropertyTo($value, 'storage', $obj->getArrayCopy(), Value::PROP_PRIVATE, null, \ArrayObject::class);
+		$describer->addPropertyTo($value, 'storage', $obj->getArrayCopy(), Value::PropertyPrivate, null, \ArrayObject::class);
 	}
 
 
@@ -124,7 +138,7 @@ final class Exposer
 		$props = preg_match_all('#^\s*\[([^\]]+)\] =>#m', print_r($obj, true), $tmp) ? $tmp[1] : [];
 		sort($props);
 		foreach ($props as $p) {
-			$describer->addPropertyTo($value, $p, $obj->$p, Value::PROP_PUBLIC);
+			$describer->addPropertyTo($value, $p, $obj->$p, Value::PropertyPublic);
 		}
 	}
 
@@ -134,8 +148,34 @@ final class Exposer
 	 */
 	public static function exposeDOMNodeList($obj, Value $value, Describer $describer): void
 	{
-		$describer->addPropertyTo($value, 'length', $obj->length, Value::PROP_PUBLIC);
+		$describer->addPropertyTo($value, 'length', $obj->length, Value::PropertyPublic);
 		$describer->addPropertyTo($value, 'items', iterator_to_array($obj));
+	}
+
+
+	public static function exposeGenerator(\Generator $gen, Value $value, Describer $describer): void
+	{
+		try {
+			$r = new \ReflectionGenerator($gen);
+			$describer->addPropertyTo($value, 'file', $r->getExecutingFile() . ':' . $r->getExecutingLine());
+			$describer->addPropertyTo($value, 'this', $r->getThis());
+		} catch (\ReflectionException $e) {
+			$value->value = get_class($gen) . ' (terminated)';
+		}
+	}
+
+
+	public static function exposeFiber(\Fiber $fiber, Value $value, Describer $describer): void
+	{
+		if ($fiber->isTerminated()) {
+			$value->value = get_class($fiber) . ' (terminated)';
+		} elseif (!$fiber->isStarted()) {
+			$value->value = get_class($fiber) . ' (not started)';
+		} else {
+			$r = new \ReflectionFiber($fiber);
+			$describer->addPropertyTo($value, 'file', $r->getExecutingFile() . ':' . $r->getExecutingLine());
+			$describer->addPropertyTo($value, 'callable', $r->getCallable());
+		}
 	}
 
 
@@ -151,6 +191,7 @@ final class Exposer
 		foreach (clone $obj as $item) {
 			$res[] = ['object' => $item, 'data' => $obj[$item]];
 		}
+
 		return $res;
 	}
 
@@ -159,7 +200,8 @@ final class Exposer
 		\__PHP_Incomplete_Class $obj,
 		Value $value,
 		Describer $describer
-	): void {
+	): void
+	{
 		$values = (array) $obj;
 		$class = $values['__PHP_Incomplete_Class_Name'];
 		unset($values['__PHP_Incomplete_Class_Name']);
@@ -168,15 +210,42 @@ final class Exposer
 			if (isset($k[0]) && $k[0] === "\x00") {
 				$info = explode("\00", $k);
 				$k = end($info);
-				$type = $info[1] === '*' ? Value::PROP_PROTECTED : Value::PROP_PRIVATE;
-				$decl = $type === Value::PROP_PRIVATE ? $info[1] : null;
+				$type = $info[1] === '*' ? Value::PropertyProtected : Value::PropertyPrivate;
+				$decl = $type === Value::PropertyPrivate ? $info[1] : null;
 			} else {
-				$type = Value::PROP_PUBLIC;
+				$type = Value::PropertyPublic;
 				$k = (string) $k;
 				$decl = null;
 			}
+
 			$describer->addPropertyTo($value, $k, $v, $type, $refId, $decl);
 		}
+
 		$value->value = $class . ' (Incomplete Class)';
+	}
+
+
+	public static function exposeDsCollection(
+		Ds\Collection $obj,
+		Value $value,
+		Describer $describer
+	): void
+	{
+		foreach (clone $obj as $k => $v) {
+			$describer->addPropertyTo($value, (string) $k, $v, Value::PropertyVirtual);
+		}
+	}
+
+
+	public static function exposeDsMap(
+		Ds\Map $obj,
+		Value $value,
+		Describer $describer
+	): void
+	{
+		$i = 0;
+		foreach ($obj as $k => $v) {
+			$describer->addPropertyTo($value, (string) $i++, new Ds\Pair($k, $v), Value::PropertyVirtual);
+		}
 	}
 }

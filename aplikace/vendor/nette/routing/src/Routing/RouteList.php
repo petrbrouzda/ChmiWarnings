@@ -48,8 +48,25 @@ class RouteList implements Router
 
 	/**
 	 * Maps HTTP request to an array.
+	 * @final
 	 */
 	public function match(Nette\Http\IRequest $httpRequest): ?array
+	{
+		if ($httpRequest = $this->prepareRequest($httpRequest)) {
+			foreach ($this->list as [$router]) {
+				if (
+					($params = $router->match($httpRequest)) !== null
+					&& ($params = $this->completeParameters($params)) !== null
+				) {
+					return $params;
+				}
+			}
+		}
+		return null;
+	}
+
+
+	protected function prepareRequest(Nette\Http\IRequest $httpRequest): ?Nette\Http\IRequest
 	{
 		if ($this->domain) {
 			$host = $httpRequest->getUrl()->getHost();
@@ -60,20 +77,25 @@ class RouteList implements Router
 
 		if ($this->path) {
 			$url = $httpRequest->getUrl();
-			if (strncmp($url->getRelativePath(), $this->path, strlen($this->path))) {
+			$relativePath = $url->getRelativePath();
+			if (strncmp($relativePath, $this->path, strlen($this->path)) === 0) {
+				$url = $url->withPath($url->getPath(), $url->getBasePath() . $this->path);
+			} elseif ($relativePath . '/' === $this->path) {
+				$url = $url->withPath($url->getPath() . '/');
+			} else {
 				return null;
 			}
-			$url = $url->withPath($url->getPath(), $url->getBasePath() . $this->path);
+
 			$httpRequest = $httpRequest->withUrl($url);
 		}
 
-		foreach ($this->list as [$router]) {
-			$params = $router->match($httpRequest);
-			if ($params !== null) {
-				return $params;
-			}
-		}
-		return null;
+		return $httpRequest;
+	}
+
+
+	protected function completeParameters(array $params): ?array
+	{
+		return $params;
 	}
 
 
@@ -88,6 +110,7 @@ class RouteList implements Router
 					$this->expandDomain($refUrl->getHost())
 				);
 			}
+
 			$refUrl = $this->refUrlCache[$refUrl];
 		}
 
@@ -95,6 +118,7 @@ class RouteList implements Router
 			if (!isset($this->refUrlCache[$refUrl])) {
 				$this->refUrlCache[$refUrl] = $refUrl->withPath($refUrl->getBasePath() . $this->path);
 			}
+
 			$refUrl = $this->refUrlCache[$refUrl];
 		}
 
@@ -129,6 +153,7 @@ class RouteList implements Router
 			} elseif ($router instanceof self) {
 				$router->warmupCache();
 			}
+
 			$params = $router instanceof Route
 				? $router->getConstantParameters()
 				: [];
@@ -136,6 +161,7 @@ class RouteList implements Router
 			foreach (array_filter($params, 'is_scalar') as $name => $value) {
 				$candidates[$name][$value] = true;
 			}
+
 			$routers[] = [$router, $params];
 		}
 
@@ -160,6 +186,7 @@ class RouteList implements Router
 				if (!isset($ranks[$value])) {
 					$ranks[$value] = $ranks['*'];
 				}
+
 				$ranks[$value][] = $router;
 			}
 		}
@@ -200,6 +227,7 @@ class RouteList implements Router
 		} else {
 			array_splice($this->list, $index, 1);
 		}
+
 		$this->ranks = null;
 	}
 
@@ -246,7 +274,7 @@ class RouteList implements Router
 
 
 	/**
-	 * @return static
+	 * @return ?static
 	 */
 	public function end()
 	{
@@ -269,6 +297,18 @@ class RouteList implements Router
 	public function getFlags(): array
 	{
 		return array_column($this->list, 1);
+	}
+
+
+	public function getDomain(): ?string
+	{
+		return $this->domain;
+	}
+
+
+	public function getPath(): ?string
+	{
+		return $this->path;
 	}
 
 

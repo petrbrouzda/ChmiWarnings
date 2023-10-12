@@ -19,8 +19,8 @@ use Nette\Application;
 final class SimpleRouter extends Nette\Routing\SimpleRouter implements Nette\Routing\Router
 {
 	private const
-		PRESENTER_KEY = 'presenter',
-		MODULE_KEY = 'module';
+		PresenterKey = 'presenter',
+		ModuleKey = 'module';
 
 	/** @var int */
 	private $flags;
@@ -33,13 +33,14 @@ final class SimpleRouter extends Nette\Routing\SimpleRouter implements Nette\Rou
 			if (!$presenter) {
 				throw new Nette\InvalidArgumentException("Argument must be array or string in format Presenter:action, '$defaults' given.");
 			}
+
 			$defaults = [
-				self::PRESENTER_KEY => $presenter,
-				'action' => $action === '' ? Application\UI\Presenter::DEFAULT_ACTION : $action,
+				self::PresenterKey => $presenter,
+				'action' => $action === '' ? Application\UI\Presenter::DefaultAction : $action,
 			];
 		}
 
-		if (isset($defaults[self::MODULE_KEY])) {
+		if (isset($defaults[self::ModuleKey])) {
 			throw new Nette\DeprecatedException(__METHOD__ . '() parameter module is deprecated, use RouteList::withModule() instead.');
 		} elseif ($flags) {
 			trigger_error(__METHOD__ . '() parameter $flags is deprecated, use RouteList::add(..., $flags) instead.', E_USER_DEPRECATED);
@@ -58,6 +59,7 @@ final class SimpleRouter extends Nette\Routing\SimpleRouter implements Nette\Rou
 		if ($this->flags & self::ONE_WAY) {
 			return null;
 		}
+
 		return parent::constructUrl($params, $refUrl);
 	}
 

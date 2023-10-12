@@ -53,6 +53,7 @@ class DateTime extends \DateTime implements \JsonSerializable
 			if ($time <= self::YEAR) {
 				$time += time();
 			}
+
 			return (new static('@' . $time))->setTimezone(new \DateTimeZone(date_default_timezone_get()));
 
 		} else { // textual or null
@@ -86,6 +87,7 @@ class DateTime extends \DateTime implements \JsonSerializable
 		) {
 			throw new Nette\InvalidArgumentException("Invalid date '$s'");
 		}
+
 		return new static($s);
 	}
 
@@ -97,6 +99,7 @@ class DateTime extends \DateTime implements \JsonSerializable
 	 * @param  string|\DateTimeZone  $timezone (default timezone is used if null is passed)
 	 * @return static|false
 	 */
+	#[\ReturnTypeWillChange]
 	public static function createFromFormat($format, $time, $timezone = null)
 	{
 		if ($timezone === null) {

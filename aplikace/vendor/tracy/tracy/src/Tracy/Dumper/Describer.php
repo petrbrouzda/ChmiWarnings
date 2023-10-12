@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Tracy\Dumper;
 
+use Tracy;
 use Tracy\Helpers;
 
 
@@ -18,10 +19,10 @@ use Tracy\Helpers;
  */
 final class Describer
 {
-	public const HIDDEN_VALUE = '*****';
+	public const HiddenValue = '*****';
 
 	// Number.MAX_SAFE_INTEGER
-	private const JS_SAFE_INTEGER = 1 << 53 - 1;
+	private const JsSafeInteger = 1 << 53 - 1;
 
 	/** @var int */
 	public $maxDepth = 7;
@@ -81,11 +82,12 @@ final class Describer
 	/**
 	 * @return mixed
 	 */
-	private function describeVar($var, int $depth = 0, int $refId = null)
+	private function describeVar($var, int $depth = 0, ?int $refId = null)
 	{
 		if ($var === null || is_bool($var)) {
 			return $var;
 		}
+
 		$m = 'describe' . explode(' ', gettype($var))[0];
 		return $this->$m($var, $depth, $refId);
 	}
@@ -96,9 +98,9 @@ final class Describer
 	 */
 	private function describeInteger(int $num)
 	{
-		return $num <= self::JS_SAFE_INTEGER && $num >= -self::JS_SAFE_INTEGER
+		return $num <= self::JsSafeInteger && $num >= -self::JsSafeInteger
 			? $num
-			: new Value(Value::TYPE_NUMBER, "$num");
+			: new Value(Value::TypeNumber, "$num");
 	}
 
 
@@ -108,12 +110,13 @@ final class Describer
 	private function describeDouble(float $num)
 	{
 		if (!is_finite($num)) {
-			return new Value(Value::TYPE_NUMBER, (string) $num);
+			return new Value(Value::TypeNumber, (string) $num);
 		}
+
 		$js = json_encode($num);
 		return strpos($js, '.')
 			? $num
-			: new Value(Value::TYPE_NUMBER, "$js.0"); // to distinct int and float in JS
+			: new Value(Value::TypeNumber, "$js.0"); // to distinct int and float in JS
 	}
 
 
@@ -122,13 +125,13 @@ final class Describer
 	 */
 	private function describeString(string $s, int $depth = 0)
 	{
-		$encoded = Helpers::encodeString($s, $depth ? $this->maxLength : null, $utf);
+		$encoded = Helpers::encodeString($s, $depth ? $this->maxLength : null);
 		if ($encoded === $s) {
 			return $encoded;
-		} elseif ($utf) {
-			return new Value(Value::TYPE_STRING_HTML, $encoded, strlen(utf8_decode($s)));
+		} elseif (Helpers::isUtf8($s)) {
+			return new Value(Value::TypeStringHtml, $encoded, Helpers::utf8Length($s));
 		} else {
-			return new Value(Value::TYPE_BINARY_HTML, $encoded, strlen($s));
+			return new Value(Value::TypeBinaryHtml, $encoded, strlen($s));
 		}
 	}
 
@@ -136,16 +139,16 @@ final class Describer
 	/**
 	 * @return Value|array
 	 */
-	private function describeArray(array $arr, int $depth = 0, int $refId = null)
+	private function describeArray(array $arr, int $depth = 0, ?int $refId = null)
 	{
 		if ($refId) {
-			$res = new Value(Value::TYPE_REF, 'p' . $refId);
+			$res = new Value(Value::TypeRef, 'p' . $refId);
 			$value = &$this->snapshot[$res->value];
 			if ($value && $value->depth <= $depth) {
 				return $res;
 			}
 
-			$value = new Value(Value::TYPE_ARRAY);
+			$value = new Value(Value::TypeArray);
 			$value->id = $res->value;
 			$value->depth = $depth;
 			if ($this->maxDepth && $depth >= $this->maxDepth) {
@@ -155,13 +158,14 @@ final class Describer
 				$value->length = count($arr);
 				$arr = array_slice($arr, 0, $this->maxItems, true);
 			}
+
 			$items = &$value->items;
 
 		} elseif ($arr && $this->maxDepth && $depth >= $this->maxDepth) {
-			return new Value(Value::TYPE_ARRAY, null, count($arr));
+			return new Value(Value::TypeArray, null, count($arr));
 
 		} elseif ($depth && $this->maxItems && count($arr) > $this->maxItems) {
-			$res = new Value(Value::TYPE_ARRAY, null, count($arr));
+			$res = new Value(Value::TypeArray, null, count($arr));
 			$res->depth = $depth;
 			$items = &$res->items;
 			$arr = array_slice($arr, 0, $this->maxItems, true);
@@ -173,7 +177,7 @@ final class Describer
 			$items[] = [
 				$this->describeVar($k, $depth + 1),
 				$this->isSensitive((string) $k, $v)
-					? new Value(Value::TYPE_TEXT, self::hideValue($v))
+					? new Value(Value::TypeText, self::hideValue($v))
 					: $this->describeVar($v, $depth + 1, $refId),
 			] + ($refId ? [2 => $refId] : []);
 		}
@@ -187,10 +191,10 @@ final class Describer
 		$id = spl_object_id($obj);
 		$value = &$this->snapshot[$id];
 		if ($value && $value->depth <= $depth) {
-			return new Value(Value::TYPE_REF, $id);
+			return new Value(Value::TypeRef, $id);
 		}
 
-		$value = new Value(Value::TYPE_OBJECT, Helpers::getClass($obj));
+		$value = new Value(Value::TypeObject, Helpers::getClass($obj));
 		$value->id = $id;
 		$value->depth = $depth;
 		$value->holder = $obj; // to be not released by garbage collector in collecting mode
@@ -207,10 +211,11 @@ final class Describer
 			$value->items = [];
 			$props = $this->exposeObject($obj, $value);
 			foreach ($props ?? [] as $k => $v) {
-				$this->addPropertyTo($value, (string) $k, $v, Value::PROP_VIRTUAL, $this->getReferenceId($props, $k));
+				$this->addPropertyTo($value, (string) $k, $v, Value::PropertyVirtual, $this->getReferenceId($props, $k));
 			}
 		}
-		return new Value(Value::TYPE_REF, $id);
+
+		return new Value(Value::TypeRef, $id);
 	}
 
 
@@ -223,7 +228,7 @@ final class Describer
 		$value = &$this->snapshot[$id];
 		if (!$value) {
 			$type = is_resource($resource) ? get_resource_type($resource) : 'closed';
-			$value = new Value(Value::TYPE_RESOURCE, $type . ' resource');
+			$value = new Value(Value::TypeResource, $type . ' resource');
 			$value->id = $id;
 			$value->depth = $depth;
 			$value->items = [];
@@ -233,7 +238,8 @@ final class Describer
 				}
 			}
 		}
-		return new Value(Value::TYPE_REF, $id);
+
+		return new Value(Value::TypeRef, $id);
 	}
 
 
@@ -245,9 +251,10 @@ final class Describer
 		if (preg_match('#^[\w!\#$%&*+./;<>?@^{|}~-]{1,50}$#D', $key) && !preg_match('#^(true|false|null)$#iD', $key)) {
 			return $key;
 		}
+
 		$value = $this->describeString($key);
 		return is_string($value) // ensure result is Value
-			? new Value(Value::TYPE_STRING_HTML, $key, strlen(utf8_decode($key)))
+			? new Value(Value::TypeStringHtml, $key, Helpers::utf8Length($key))
 			: $value;
 	}
 
@@ -256,9 +263,9 @@ final class Describer
 		Value $value,
 		string $k,
 		$v,
-		$type = Value::PROP_VIRTUAL,
-		int $refId = null,
-		string $class = null
+		$type = Value::PropertyVirtual,
+		?int $refId = null,
+		?string $class = null
 	) {
 		if ($value->depth && $this->maxItems && count($value->items ?? []) >= $this->maxItems) {
 			$value->length = ($value->length ?? count($value->items)) + 1;
@@ -268,10 +275,10 @@ final class Describer
 		$class = $class ?? $value->value;
 		$value->items[] = [
 			$this->describeKey($k),
-			$type !== Value::PROP_VIRTUAL && $this->isSensitive($k, $v, $class)
-				? new Value(Value::TYPE_TEXT, self::hideValue($v))
+			$type !== Value::PropertyVirtual && $this->isSensitive($k, $v, $class)
+				? new Value(Value::TypeText, self::hideValue($v))
 				: $this->describeVar($v, $value->depth + 1, $refId),
-			$type === Value::PROP_PRIVATE ? $class : $type,
+			$type === Value::PropertyPrivate ? $class : $type,
 		] + ($refId ? [3 => $refId] : []);
 	}
 
@@ -293,18 +300,22 @@ final class Describer
 	}
 
 
-	private function isSensitive(string $key, $val, string $class = null): bool
+	private function isSensitive(string $key, $val, ?string $class = null): bool
 	{
-		return
-			($this->scrubber !== null && ($this->scrubber)($key, $val, $class))
+		return $val instanceof \SensitiveParameterValue
+			|| ($this->scrubber !== null && ($this->scrubber)($key, $val, $class))
 			|| isset($this->keysToHide[strtolower($key)])
 			|| isset($this->keysToHide[strtolower($class . '::$' . $key)]);
 	}
 
 
-	private static function hideValue($var): string
+	private static function hideValue($val): string
 	{
-		return self::HIDDEN_VALUE . ' (' . (is_object($var) ? Helpers::getClass($var) : gettype($var)) . ')';
+		if ($val instanceof \SensitiveParameterValue) {
+			$val = $val->getValue();
+		}
+
+		return self::HiddenValue . ' (' . (is_object($val) ? Helpers::getClass($val) : gettype($val)) . ')';
 	}
 
 
@@ -314,12 +325,15 @@ final class Describer
 			if ((!$rr = \ReflectionReference::fromArrayElement($arr, $key))) {
 				return null;
 			}
+
 			$tmp = &$this->references[$rr->getId()];
 			if ($tmp === null) {
 				return $tmp = count($this->references);
 			}
+
 			return $tmp;
 		}
+
 		$uniq = new \stdClass;
 		$copy = $arr;
 		$orig = $copy[$key];
@@ -327,12 +341,14 @@ final class Describer
 		if ($arr[$key] !== $uniq) {
 			return null;
 		}
+
 		$res = array_search($uniq, $this->references, true);
 		$copy[$key] = $orig;
 		if ($res === false) {
 			$this->references[] = &$arr[$key];
 			return count($this->references);
 		}
+
 		return $res + 1;
 	}
 
@@ -343,7 +359,7 @@ final class Describer
 	private static function findLocation(): ?array
 	{
 		foreach (debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS) as $item) {
-			if (isset($item['class']) && ($item['class'] === self::class || $item['class'] === \Tracy\Dumper::class)) {
+			if (isset($item['class']) && ($item['class'] === self::class || $item['class'] === Tracy\Dumper::class)) {
 				$location = $item;
 				continue;
 			} elseif (isset($item['function'])) {
@@ -361,10 +377,11 @@ final class Describer
 				} catch (\ReflectionException $e) {
 				}
 			}
+
 			break;
 		}
 
-		if (isset($location['file'], $location['line']) && is_file($location['file'])) {
+		if (isset($location['file'], $location['line']) && @is_file($location['file'])) { // @ - may trigger error
 			$lines = file($location['file']);
 			$line = $lines[$location['line'] - 1];
 			return [
@@ -373,6 +390,7 @@ final class Describer
 				trim(preg_match('#\w*dump(er::\w+)?\(.*\)#i', $line, $m) ? $m[0] : $line),
 			];
 		}
+
 		return null;
 	}
 }

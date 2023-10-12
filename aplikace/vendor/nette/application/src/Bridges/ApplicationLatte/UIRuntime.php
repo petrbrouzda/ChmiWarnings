@@ -16,7 +16,7 @@ use Nette\PhpGenerator as Php;
 
 
 /**
- * Runtime helpers for UI macros.
+ * Latte v2 helpers for UI macros.
  * @internal
  */
 final class UIRuntime
@@ -38,13 +38,10 @@ final class UIRuntime
 	}
 
 
-	public static function printClass(Latte\Runtime\Template $template, string $parent = null): void
+	public static function printClass(Latte\Runtime\Template $template, ?string $parent = null): void
 	{
+		$blueprint = new Latte\Runtime\Blueprint;
 		$name = 'Template';
-		$parent = $parent === 'default'
-			? DefaultTemplate::class
-			: ($parent ?: Template::class);
-
 		$params = $template->getParameters();
 		$control = $params['control'] ?? $params['presenter'] ?? null;
 		if ($control) {
@@ -52,20 +49,25 @@ final class UIRuntime
 			unset($params[$control instanceof Presenter ? 'control' : 'presenter']);
 		}
 
-		if (class_exists($parent)) {
-			get_class_vars($parent);
+		if ($parent) {
+			if (!class_exists($parent)) {
+				$blueprint->printHeader("{templatePrint}: Class '$parent' doesn't exist.");
+				return;
+			}
+
 			$params = array_diff_key($params, get_class_vars($parent));
 		}
 
-		$funcs = (array) $template->global->fn;
+		$funcs = array_diff_key((array) $template->global->fn, (new Latte\Runtime\Defaults)->getFunctions());
 		unset($funcs['isLinkCurrent'], $funcs['isModuleCurrent']);
 
 		$namespace = new Php\PhpNamespace(Php\Helpers::extractNamespace($name));
 		$class = $namespace->addClass(Php\Helpers::extractShortName($name));
-		$class->setExtends($parent);
-		$class->addTrait(Nette\SmartObject::class);
+		$class->setExtends($parent ?: Template::class);
+		if (!$parent) {
+			$class->addTrait(Nette\SmartObject::class);
+		}
 
-		$blueprint = new Latte\Runtime\Blueprint;
 		$blueprint->addProperties($class, $params, true);
 		$blueprint->addFunctions($class, $funcs);
 

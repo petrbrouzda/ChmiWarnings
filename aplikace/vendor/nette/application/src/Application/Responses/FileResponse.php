@@ -37,8 +37,8 @@ final class FileResponse implements Nette\Application\Response
 
 	public function __construct(
 		string $file,
-		string $name = null,
-		string $contentType = null,
+		?string $name = null,
+		?string $contentType = null,
 		bool $forceDownload = true
 	) {
 		if (!is_file($file) || !is_readable($file)) {
@@ -109,6 +109,7 @@ final class FileResponse implements Nette\Application\Response
 				} elseif ($end === '' || $end > $filesize - 1) {
 					$end = $filesize - 1;
 				}
+
 				if ($end < $start) {
 					$httpResponse->setCode(416); // requested range not satisfiable
 					return;
@@ -129,6 +130,7 @@ final class FileResponse implements Nette\Application\Response
 			echo $s = fread($handle, min(4000000, $length));
 			$length -= strlen($s);
 		}
+
 		fclose($handle);
 	}
 }

@@ -27,7 +27,7 @@ class Form extends Nette\Forms\Form implements SignalReceiver
 	/**
 	 * Application form constructor.
 	 */
-	public function __construct(Nette\ComponentModel\IContainer $parent = null, string $name = null)
+	public function __construct(?Nette\ComponentModel\IContainer $parent = null, ?string $name = null)
 	{
 		parent::__construct();
 		if ($parent !== null) {
@@ -44,6 +44,7 @@ class Form extends Nette\Forms\Form implements SignalReceiver
 			if (!isset($this->getElementPrototype()->id)) {
 				$this->getElementPrototype()->id = 'frm-' . $this->lookupPath(Presenter::class);
 			}
+
 			if (!$this->getAction()) {
 				$this->setAction(new Link($presenter, 'this'));
 			}
@@ -71,6 +72,7 @@ class Form extends Nette\Forms\Form implements SignalReceiver
 			trigger_error(__METHOD__ . '() parameter $throw is deprecated, use getPresenterIfExists()', E_USER_DEPRECATED);
 			$throw = func_get_arg(0);
 		}
+
 		return $this->lookup(Presenter::class, $throw ?? true);
 	}
 
@@ -140,7 +142,7 @@ class Form extends Nette\Forms\Form implements SignalReceiver
 	protected function beforeRender()
 	{
 		parent::beforeRender();
-		$key = ($this->isMethod('post') ? '_' : '') . Presenter::SIGNAL_KEY;
+		$key = ($this->isMethod('post') ? '_' : '') . Presenter::SignalKey;
 		if (!isset($this[$key])) {
 			$do = $this->lookupPath(Presenter::class) . self::NAME_SEPARATOR . 'submit';
 			$this[$key] = (new Nette\Forms\Controls\HiddenField($do))->setOmitted();

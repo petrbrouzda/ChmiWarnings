@@ -13,7 +13,7 @@ Introduction
 
 NEON is a human-readable structured data format. In Nette, it is used for configuration files. It is also used for structured data such as settings, language translations, etc. [Try it on the sandbox](https://ne-on.org).
 
-NEON stands for *Nette Object Notation*. It is less complex and ungainly than XML or JSON, but provides similar capabilities. It is very similar to YAML. The main advantage is that NEON has so-called [entities](#entities), thanks to which the configuration of DI services is so sexy. And allowes tabs for indentation.
+NEON stands for *Nette Object Notation*. It is less complex and ungainly than XML or JSON, but provides similar capabilities. It is very similar to YAML. The main advantage is that NEON has so-called [entities](#entities), thanks to which the configuration of DI services is so sexy. And allows tabs for indentation.
 
 NEON is built from the ground up to be simple to use.
 
@@ -37,15 +37,15 @@ Install via Composer:
 composer require nette/neon
 ```
 
-It requires PHP version 7.1 and supports PHP up to 8.0. Documentation can be found on the [website](https://doc.nette.org/neon).
+It requires PHP version 7.1 and supports PHP up to 8.1. Documentation can be found on the [website](https://doc.nette.org/neon).
 
-`Neon::encode()` returns `$value` converted to NEON. As the second parameter you can use `Neon::BLOCK`, which will create multiline output.
+`Neon::encode()` returns `$value` converted to NEON. As the second parameter `$blockMode` you can pass true, which will create multiline output. The third parameter `$indentation` specifies the characters used for indentation (default is tab).
 
 ```php
 use Nette\Neon\Neon;
 
 $neon = Neon::encode($value); // Returns $value converted to NEON
-$neon = Neon::encode($value, Neon::BLOCK); // Returns $value converted to multiline NEON
+$neon = Neon::encode($value, true); // Returns $value converted to multiline NEON
 ```
 
 `Neon::decode()` converts given NEON to PHP value:
@@ -54,7 +54,13 @@ $neon = Neon::encode($value, Neon::BLOCK); // Returns $value converted to multil
 $value = Neon::decode('hello: world'); // Returns an array ['hello' => 'world']
 ```
 
-Both methods throw `Nette\Neon\Exception` on error.
+`Neon::decodeFile()` converts given NEON file to PHP value:
+
+```php
+$value = Neon::decodeFile('config.neon');
+```
+
+All methods throw `Nette\Neon\Exception` on error.
 
 
 Integration
@@ -71,6 +77,12 @@ Integration
 - [NEON for JavaScript](https://github.com/matej21/neon-js)
 - [NEON for Python](https://github.com/paveldedik/neon-py).
 
+
+You can check for syntax errors in Neon files using the `neon-lint` console command:
+
+```shell
+vendor/bin/neon-lint <path>
+```
 
 Syntax
 ======
@@ -243,7 +255,7 @@ If the string contains characters that can be confused with NEON syntax (hyphens
 Double quotes allow you to use escape sequences to write special characters using backslashes `\`. All escape sequences as in the JSON format are supported, plus `\_`, which is an non-breaking space, ie `\u00A0`.
 
 ```neon
-- "\t \n \r \f \b \" \' \\ \/ \_"
+- "\t \n \r \f \b \" \\ \/ \_"
 - "\u00A9"
 ```
 
@@ -350,7 +362,7 @@ Which is parsed in PHP as follows:
 
 ```php
 // PHP
-new Nette\Neon\Entity(Nette\Neon\Neon::CHAIN, [
+new Nette\Neon\Entity(Nette\Neon\Neon::Chain, [
 	new Nette\Neon\Entity('Column', ['type' => 'int', 'nulls' => true]),
 	new Nette\Neon\Entity('Field', ['id' => 1]),
 ])

@@ -26,6 +26,10 @@ class MacroTokens extends TokenIterator
 		T_KEYWORD = 8,
 		T_CHAR = 9;
 
+	public const
+		SIGNIFICANT = [self::T_SYMBOL, self::T_NUMBER, self::T_VARIABLE, self::T_STRING, self::T_CAST, self::T_KEYWORD, self::T_CHAR],
+		NON_SIGNIFICANT = [self::T_COMMENT, self::T_WHITESPACE];
+
 	/** @var int */
 	public $depth = 0;
 
@@ -39,7 +43,7 @@ class MacroTokens extends TokenIterator
 	public function __construct($input = [])
 	{
 		parent::__construct(is_array($input) ? $input : $this->parse($input));
-		$this->ignored = [self::T_COMMENT, self::T_WHITESPACE];
+		$this->ignored = self::NON_SIGNIFICANT;
 	}
 
 
@@ -68,7 +72,7 @@ class MacroTokens extends TokenIterator
 	 * @param  string|array{string, int, int}  $val
 	 * @return static
 	 */
-	public function append($val, int $position = null)
+	public function append($val, ?int $position = null)
 	{
 		if ($val != null) { // intentionally @
 			array_splice(
@@ -78,6 +82,7 @@ class MacroTokens extends TokenIterator
 				is_array($val) ? [$val] : $this->parse($val)
 			);
 		}
+
 		return $this;
 	}
 
@@ -92,6 +97,7 @@ class MacroTokens extends TokenIterator
 		if ($val != null) { // intentionally @
 			array_splice($this->tokens, 0, 0, is_array($val) ? [$val] : $this->parse($val));
 		}
+
 		return $this;
 	}
 
@@ -113,6 +119,7 @@ class MacroTokens extends TokenIterator
 				$expr .= $this->joinUntilSameDepth(',');
 			}
 		}
+
 		$this->nextToken(',');
 		$this->nextAll(self::T_WHITESPACE, self::T_COMMENT);
 		return $expr === '' ? null : $expr;
@@ -132,6 +139,7 @@ class MacroTokens extends TokenIterator
 			&& (($dot = $this->nextValue('.')) || $this->isPrev('.'))) {
 			$words[0] .= $space . $dot . $this->joinUntil(',');
 		}
+
 		$this->nextToken(',');
 		$this->nextAll(self::T_WHITESPACE, self::T_COMMENT);
 		return $words === [''] ? [] : $words;
@@ -150,6 +158,7 @@ class MacroTokens extends TokenIterator
 			if ($this->depth === $depth) {
 				return $res;
 			}
+
 			$res .= $this->nextValue();
 		} while (true);
 	}
@@ -165,11 +174,12 @@ class MacroTokens extends TokenIterator
 		$pos = $this->position;
 		if (
 			($mod = $this->nextValue(...$modifiers))
-			&& $this->nextToken($this::T_WHITESPACE)
+			&& ($this->nextToken($this::T_WHITESPACE) || !ctype_alnum($mod))
 			&& ($name = $this->fetchWord())
 		) {
 			return [$name, $mod];
 		}
+
 		$this->position = $pos;
 		$name = $this->fetchWord();
 		return $name === null ? null : [$name, null];

@@ -15,10 +15,13 @@ namespace Tester;
  */
 class FileMock
 {
-	private const PROTOCOL = 'mock';
+	private const Protocol = 'mock';
 
 	/** @var string[] */
 	public static $files = [];
+
+	/** @var resource used by PHP itself */
+	public $context;
 
 	/** @var string */
 	private $content;
@@ -42,12 +45,12 @@ class FileMock
 	/**
 	 * @return string  file name
 	 */
-	public static function create(string $content = '', string $extension = null): string
+	public static function create(string $content = '', ?string $extension = null): string
 	{
 		self::register();
 
 		static $id;
-		$name = self::PROTOCOL . '://' . (++$id) . '.' . $extension;
+		$name = self::Protocol . '://' . (++$id) . '.' . $extension;
 		self::$files[$name] = $content;
 		return $name;
 	}
@@ -55,8 +58,8 @@ class FileMock
 
 	public static function register(): void
 	{
-		if (!in_array(self::PROTOCOL, stream_get_wrappers(), true)) {
-			stream_wrapper_register(self::PROTOCOL, self::class);
+		if (!in_array(self::Protocol, stream_get_wrappers(), true)) {
+			stream_wrapper_register(self::Protocol, self::class);
 		}
 	}
 
@@ -140,6 +143,7 @@ class FileMock
 		} elseif ($whence === SEEK_END) {
 			$offset += strlen($this->content);
 		}
+
 		if ($offset >= 0) {
 			$this->readingPos = $offset;
 			$this->writingPos = $this->appendMode ? $this->writingPos : $offset;
@@ -194,6 +198,7 @@ class FileMock
 			case STREAM_META_TOUCH:
 				return true;
 		}
+
 		return false;
 	}
 

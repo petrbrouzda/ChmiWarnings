@@ -36,8 +36,8 @@ class Explorer
 	public function __construct(
 		Connection $connection,
 		Structure $structure,
-		Conventions $conventions = null,
-		Nette\Caching\IStorage $cacheStorage = null
+		?Conventions $conventions = null,
+		?Nette\Caching\IStorage $cacheStorage = null
 	) {
 		$this->connection = $connection;
 		$this->structure = $structure;
@@ -75,7 +75,7 @@ class Explorer
 	}
 
 
-	public function getInsertId(string $sequence = null): string
+	public function getInsertId(?string $sequence = null): string
 	{
 		return $this->connection->getInsertId($sequence);
 	}
@@ -83,6 +83,7 @@ class Explorer
 
 	/**
 	 * Generates and executes SQL query.
+	 * @param  literal-string  $sql
 	 */
 	public function query(string $sql, ...$params): ResultSet
 	{
@@ -90,6 +91,7 @@ class Explorer
 	}
 
 
+	/** @deprecated  use query() */
 	public function queryArgs(string $sql, array $params): ResultSet
 	{
 		return $this->connection->query($sql, ...$params);
@@ -125,6 +127,7 @@ class Explorer
 
 	/**
 	 * Shortcut for query()->fetch()
+	 * @param  literal-string  $sql
 	 */
 	public function fetch(string $sql, ...$params): ?Row
 	{
@@ -134,6 +137,7 @@ class Explorer
 
 	/**
 	 * Shortcut for query()->fetchField()
+	 * @param  literal-string  $sql
 	 * @return mixed
 	 */
 	public function fetchField(string $sql, ...$params)
@@ -144,6 +148,7 @@ class Explorer
 
 	/**
 	 * Shortcut for query()->fetchFields()
+	 * @param  literal-string  $sql
 	 */
 	public function fetchFields(string $sql, ...$params): ?array
 	{
@@ -153,6 +158,7 @@ class Explorer
 
 	/**
 	 * Shortcut for query()->fetchPairs()
+	 * @param  literal-string  $sql
 	 */
 	public function fetchPairs(string $sql, ...$params): array
 	{
@@ -162,6 +168,7 @@ class Explorer
 
 	/**
 	 * Shortcut for query()->fetchAll()
+	 * @param  literal-string  $sql
 	 */
 	public function fetchAll(string $sql, ...$params): array
 	{

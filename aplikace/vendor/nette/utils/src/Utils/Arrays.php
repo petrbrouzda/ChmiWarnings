@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Nette\Utils;
 
+use JetBrains\PhpStorm\Language;
 use Nette;
 use function is_array, is_int, is_object, count;
 
@@ -22,9 +23,11 @@ class Arrays
 
 	/**
 	 * Returns item from array. If it does not exist, it throws an exception, unless a default value is set.
-	 * @param  string|int|array  $key one or more keys
-	 * @param  mixed  $default
-	 * @return mixed
+	 * @template T
+	 * @param  array<T>  $array
+	 * @param  array-key|array-key[]  $key
+	 * @param  ?T  $default
+	 * @return ?T
 	 * @throws Nette\InvalidArgumentException if item does not exist and default value is not provided
 	 */
 	public static function get(array $array, $key, $default = null)
@@ -36,17 +39,21 @@ class Arrays
 				if (func_num_args() < 3) {
 					throw new Nette\InvalidArgumentException("Missing item '$k'.");
 				}
+
 				return $default;
 			}
 		}
+
 		return $array;
 	}
 
 
 	/**
 	 * Returns reference to array item. If the index does not exist, new one is created with value null.
-	 * @param  string|int|array  $key one or more keys
-	 * @return mixed
+	 * @template T
+	 * @param  array<T>  $array
+	 * @param  array-key|array-key[]  $key
+	 * @return ?T
 	 * @throws Nette\InvalidArgumentException if traversed item is not an array
 	 */
 	public static function &getRef(array &$array, $key)
@@ -58,6 +65,7 @@ class Arrays
 				throw new Nette\InvalidArgumentException('Traversed item is not an array.');
 			}
 		}
+
 		return $array;
 	}
 
@@ -66,6 +74,11 @@ class Arrays
 	 * Recursively merges two fields. It is useful, for example, for merging tree structures. It behaves as
 	 * the + operator for array, ie. it adds a key/value pair from the second array to the first one and retains
 	 * the value from the first array in the case of a key collision.
+	 * @template T1
+	 * @template T2
+	 * @param  array<T1>  $array1
+	 * @param  array<T2>  $array2
+	 * @return array<T1|T2>
 	 */
 	public static function mergeTree(array $array1, array $array2): array
 	{
@@ -75,13 +88,14 @@ class Arrays
 				$res[$k] = self::mergeTree($v, $array2[$k]);
 			}
 		}
+
 		return $res;
 	}
 
 
 	/**
 	 * Returns zero-indexed position of given array key. Returns null if key is not found.
-	 * @param  string|int  $key
+	 * @param  array-key  $key
 	 * @return int|null offset if it is found, null otherwise
 	 */
 	public static function getKeyOffset(array $array, $key): ?int
@@ -111,7 +125,9 @@ class Arrays
 
 	/**
 	 * Returns the first item from the array or null if array is empty.
-	 * @return mixed
+	 * @template T
+	 * @param  array<T>  $array
+	 * @return ?T
 	 */
 	public static function first(array $array)
 	{
@@ -121,7 +137,9 @@ class Arrays
 
 	/**
 	 * Returns the last item from the array or null if array is empty.
-	 * @return mixed
+	 * @template T
+	 * @param  array<T>  $array
+	 * @return ?T
 	 */
 	public static function last(array $array)
 	{
@@ -132,7 +150,7 @@ class Arrays
 	/**
 	 * Inserts the contents of the $inserted array into the $array immediately after the $key.
 	 * If $key is null (or does not exist), it is inserted at the beginning.
-	 * @param  string|int|null  $key
+	 * @param  array-key|null  $key
 	 */
 	public static function insertBefore(array &$array, $key, array $inserted): void
 	{
@@ -146,13 +164,14 @@ class Arrays
 	/**
 	 * Inserts the contents of the $inserted array into the $array before the $key.
 	 * If $key is null (or does not exist), it is inserted at the end.
-	 * @param  string|int|null  $key
+	 * @param  array-key|null  $key
 	 */
 	public static function insertAfter(array &$array, $key, array $inserted): void
 	{
 		if ($key === null || ($offset = self::getKeyOffset($array, $key)) === null) {
 			$offset = count($array) - 1;
 		}
+
 		$array = array_slice($array, 0, $offset + 1, true)
 			+ $inserted
 			+ array_slice($array, $offset + 1, count($array), true);
@@ -161,8 +180,8 @@ class Arrays
 
 	/**
 	 * Renames key in array.
-	 * @param  string|int  $oldKey
-	 * @param  string|int  $newKey
+	 * @param  array-key  $oldKey
+	 * @param  array-key  $newKey
 	 */
 	public static function renameKey(array &$array, $oldKey, $newKey): bool
 	{
@@ -170,6 +189,7 @@ class Arrays
 		if ($offset === null) {
 			return false;
 		}
+
 		$val = &$array[$oldKey];
 		$keys = array_keys($array);
 		$keys[$offset] = $newKey;
@@ -181,9 +201,15 @@ class Arrays
 
 	/**
 	 * Returns only those array items, which matches a regular expression $pattern.
-	 * @throws Nette\RegexpException  on compilation or runtime error
+	 * @param  string[]  $array
+	 * @return string[]
 	 */
-	public static function grep(array $array, string $pattern, int $flags = 0): array
+	public static function grep(
+		array $array,
+		#[Language('RegExp')]
+		string $pattern,
+		int $flags = 0
+	): array
 	{
 		return Strings::pcre('preg_grep', [$pattern, $array, $flags]);
 	}
@@ -209,7 +235,10 @@ class Arrays
 	 */
 	public static function isList($value): bool
 	{
-		return is_array($value) && (!$value || array_keys($value) === range(0, count($value) - 1));
+		return is_array($value) && (PHP_VERSION_ID < 80100
+			? !$value || array_keys($value) === range(0, count($value) - 1)
+			: array_is_list($value)
+		);
 	}
 
 
@@ -244,17 +273,16 @@ class Arrays
 						$x = $row[$parts[$i]];
 						$row = null;
 					}
-
 				} elseif ($part === '->') {
 					if (isset($parts[++$i])) {
 						if ($x === null) {
 							$x = new \stdClass;
 						}
+
 						$x = &$x->{$row[$parts[$i]]};
 					} else {
 						$row = is_object($rowOrig) ? $rowOrig : (object) $row;
 					}
-
 				} elseif ($part !== '|') {
 					$x = &$x[(string) $row[$part]];
 				}
@@ -279,6 +307,7 @@ class Arrays
 		foreach ($array as $k => $v) {
 			$res[is_int($k) ? $v : $k] = is_int($k) ? $filling : $v;
 		}
+
 		return $res;
 	}
 
@@ -286,9 +315,11 @@ class Arrays
 	/**
 	 * Returns and removes the value of an item from an array. If it does not exist, it throws an exception,
 	 * or returns $default, if provided.
-	 * @param  string|int  $key
-	 * @param  mixed  $default
-	 * @return mixed
+	 * @template T
+	 * @param  array<T>  $array
+	 * @param  array-key  $key
+	 * @param  ?T  $default
+	 * @return ?T
 	 * @throws Nette\InvalidArgumentException if item does not exist and default value is not provided
 	 */
 	public static function pick(array &$array, $key, $default = null)
@@ -318,6 +349,7 @@ class Arrays
 				return true;
 			}
 		}
+
 		return false;
 	}
 
@@ -333,6 +365,7 @@ class Arrays
 				return false;
 			}
 		}
+
 		return true;
 	}
 
@@ -347,6 +380,7 @@ class Arrays
 		foreach ($array as $k => $v) {
 			$res[$k] = $callback($v, $k, $array);
 		}
+
 		return $res;
 	}
 
@@ -361,6 +395,7 @@ class Arrays
 		foreach ($callbacks as $k => $cb) {
 			$res[$k] = $cb(...$args);
 		}
+
 		return $res;
 	}
 
@@ -375,20 +410,23 @@ class Arrays
 		foreach ($objects as $k => $obj) {
 			$res[$k] = $obj->$method(...$args);
 		}
+
 		return $res;
 	}
 
 
 	/**
 	 * Copies the elements of the $array array to the $object object and then returns it.
-	 * @param  object  $object
-	 * @return object
+	 * @template T of object
+	 * @param  T  $object
+	 * @return T
 	 */
 	public static function toObject(iterable $array, $object)
 	{
 		foreach ($array as $k => $v) {
 			$object->$k = $v;
 		}
+
 		return $object;
 	}
 
@@ -396,7 +434,7 @@ class Arrays
 	/**
 	 * Converts value to array key.
 	 * @param  mixed  $value
-	 * @return int|string
+	 * @return array-key
 	 */
 	public static function toKey($value)
 	{
@@ -407,6 +445,7 @@ class Arrays
 	/**
 	 * Returns copy of the $array where every item is converted to string
 	 * and prefixed by $prefix and suffixed by $suffix.
+	 * @param  string[]  $array
 	 * @return string[]
 	 */
 	public static function wrap(array $array, string $prefix = '', string $suffix = ''): array
@@ -415,6 +454,7 @@ class Arrays
 		foreach ($array as $k => $v) {
 			$res[$k] = $prefix . $v . $suffix;
 		}
+
 		return $res;
 	}
 }

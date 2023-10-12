@@ -15,9 +15,9 @@
 		}
 	],
 	"require": {
-		"php": ">=7.2 <8.1",
+		"php": ">=7.2 <8.3",
 		"nette/di": "^3.0.5",
-		"nette/utils": "^3.2.1"
+		"nette/utils": "^3.2.1 || ^4.0"
 	},
 	"suggest": {
 		"nette/robot-loader": "to use Configurator::createRobotLoader()",
@@ -34,7 +34,7 @@
 		"nette/safe-stream": "^2.2",
 		"nette/security": "^3.0",
 		"nette/tester": "^2.0",
-		"latte/latte": "^2.2",
+		"latte/latte": "^2.8",
 		"tracy/tracy": "^2.6",
 		"phpstan/phpstan-nette": "^0.12"
 	},

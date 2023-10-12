@@ -78,15 +78,12 @@ class Environment
 		self::$useColors = getenv(self::COLORS) !== false
 			? (bool) getenv(self::COLORS)
 			: (PHP_SAPI === 'cli' || PHP_SAPI === 'phpdbg')
-				&& (!function_exists('stream_isatty') || stream_isatty(STDOUT)) // PHP >= 7.2
-				&& getenv('NO_COLOR') === false
-				&& (defined('PHP_WINDOWS_VERSION_BUILD')
-					? (function_exists('sapi_windows_vt100_support') && sapi_windows_vt100_support(STDOUT))
-						|| getenv('ConEmuANSI') === 'ON' // ConEmu
-						|| getenv('ANSICON') !== false // ANSICON
-						|| getenv('term') === 'xterm' // MSYS
-						|| getenv('term') === 'xterm-256color' // MSYS
-					: (!function_exists('posix_isatty') || posix_isatty(STDOUT))); // PHP < 7.2
+				&& getenv('NO_COLOR') === false // https://no-color.org
+				&& (getenv('FORCE_COLOR')
+					|| (function_exists('sapi_windows_vt100_support')
+						? sapi_windows_vt100_support(STDOUT)
+						: @stream_isatty(STDOUT)) // @ may trigger error 'cannot cast a filtered stream on this system'
+				);
 
 		ob_start(function (string $s): string {
 			return self::$useColors ? $s : Dumper::removeColors($s);
@@ -113,6 +110,7 @@ class Environment
 			) {
 				self::handleException(new \ErrorException($message, 0, $severity, $file, $line));
 			}
+
 			return false;
 		});
 
@@ -202,6 +200,7 @@ class Environment
 						: $token;
 				}
 			}
+
 			return $code;
 		});
 	}
@@ -218,6 +217,7 @@ class Environment
 			if (!array_key_exists($key, $data)) {
 				throw new \Exception("Missing dataset '$key' from data provider '$file'.");
 			}
+
 			return $data[$key];
 		}
 
@@ -225,6 +225,7 @@ class Environment
 		if (!isset($annotations['dataprovider'])) {
 			throw new \Exception('Missing annotation @dataProvider.');
 		}
+
 		$provider = (array) $annotations['dataprovider'];
 		[$file, $query] = DataProvider::parseAnnotation($provider[0], $annotations['file']);
 
