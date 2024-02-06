@@ -13,8 +13,7 @@ namespace Nette\Neon;
 /** @internal */
 final class Parser
 {
-	/** @var TokenStream */
-	private $tokens;
+	private TokenStream $tokens;
 
 	/** @var int[] */
 	private $posToLine = [];
@@ -85,11 +84,16 @@ final class Parser
 				return $res;
 
 			} elseif ($item->key !== null && $this->tokens->isNext('-')) { // special dash subblock
-				$item->value = $this->parseBlock($indent, true);
+				$item->value = $this->parseBlock($indent, onlyBullets: true);
 			}
-		} elseif ($item->key === null) {
-			$item->value = $this->parseBlock($indent . '  '); // open new block after dash
-
+		} elseif ($item->key === null) {  // open new block after dash
+			$save = $this->tokens->getPos();
+			try {
+				$item->value = $this->parseBlock($indent . "\t");
+			} catch (Exception) {
+				$this->tokens->seek($save);
+				$item->value = $this->parseBlock($indent . '  ');
+			}
 		} elseif ($this->tokens->isNext()) {
 			$item->value = $this->parseValue();
 			if ($this->tokens->isNext() && !$this->tokens->isNext(Token::Newline)) {

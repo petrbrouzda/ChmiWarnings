@@ -107,7 +107,7 @@ final class SearchExtension extends Nette\DI\CompilerExtension
 					||
 					($rc->isInterface()
 					&& count($methods = $rc->getMethods()) === 1
-					&& $methods[0]->name === 'create')
+					&& in_array($methods[0]->name, ['get', 'create'], true))
 				)
 				&& (!$acceptRE || preg_match($acceptRE, $rc->name))
 				&& (!$rejectRE || !preg_match($rejectRE, $rc->name))
@@ -133,9 +133,13 @@ final class SearchExtension extends Nette\DI\CompilerExtension
 		}
 
 		foreach ($this->classes as $class => $tags) {
-			$def = class_exists($class)
-				? $builder->addDefinition(null)->setType($class)
-				: $builder->addFactoryDefinition(null)->setImplement($class);
+			if (class_exists($class)) {
+				$def = $builder->addDefinition(null)->setType($class);
+			} elseif (method_exists($class, 'create')) {
+				$def = $builder->addFactoryDefinition(null)->setImplement($class);
+			} else {
+				$def = $builder->addAccessorDefinition(null)->setImplement($class);
+			}
 			$def->setTags(Arrays::normalize($tags, true));
 		}
 	}
@@ -144,7 +148,7 @@ final class SearchExtension extends Nette\DI\CompilerExtension
 	private static function buildNameRegexp(array $masks): ?string
 	{
 		$res = [];
-		foreach ((array) $masks as $mask) {
+		foreach ($masks as $mask) {
 			$mask = (strpos($mask, '\\') === false ? '**\\' : '') . $mask;
 			$mask = preg_quote($mask, '#');
 			$mask = str_replace('\*\*\\\\', '(.*\\\\)?', $mask);

@@ -19,7 +19,7 @@ $info = (object) [
 	'sapi' => PHP_SAPI,
 	'iniFiles' => array_merge(
 		($tmp = php_ini_loaded_file()) === false ? [] : [$tmp],
-		(function_exists('php_ini_scanned_files') && strlen($tmp = (string) php_ini_scanned_files())) ? explode(",\n", trim($tmp)) : []
+		(function_exists('php_ini_scanned_files') && strlen($tmp = (string) php_ini_scanned_files())) ? explode(",\n", trim($tmp)) : [],
 	),
 	'extensions' => $extensions,
 	'tempDir' => sys_get_temp_dir(),
@@ -37,7 +37,7 @@ foreach ([
 		=> "$info->version ($info->sapi)" . ($isPhpDbg ? "; $info->phpDbgVersion" : ''),
 	'Loaded php.ini files' => count($info->iniFiles) ? implode(', ', $info->iniFiles) : '(none)',
 	'Code coverage engines' => count($info->codeCoverageEngines)
-		? implode(', ', array_map(function (array $engineInfo) { return sprintf('%s (%s)', ...$engineInfo); }, $info->codeCoverageEngines))
+		? implode(', ', array_map(fn(array $engineInfo) => sprintf('%s (%s)', ...$engineInfo), $info->codeCoverageEngines))
 		: '(not available)',
 	'PHP temporary directory' => $info->tempDir == '' ? '(empty)' : $info->tempDir,
 	'Loaded extensions' => count($info->extensions) ? implode(', ', $info->extensions) : '(none)',

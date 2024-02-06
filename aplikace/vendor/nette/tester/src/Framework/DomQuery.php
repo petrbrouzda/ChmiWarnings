@@ -17,7 +17,7 @@ class DomQuery extends \SimpleXMLElement
 {
 	public static function fromHtml(string $html): self
 	{
-		if (strpos($html, '<') === false) {
+		if (!str_contains($html, '<')) {
 			$html = '<body>' . $html;
 		}
 
@@ -25,9 +25,11 @@ class DomQuery extends \SimpleXMLElement
 		$html = preg_replace('#<(keygen|source|track|wbr)(?=\s|>)((?:"[^"]*"|\'[^\']*\'|[^"\'>])*+)(?<!/)>#', '<$1$2 />', $html);
 
 		// fix parsing of </ inside scripts
-		$html = preg_replace_callback('#(<script(?=\s|>)(?:"[^"]*"|\'[^\']*\'|[^"\'>])*+>)(.*?)(</script>)#s', function (array $m): string {
-			return $m[1] . str_replace('</', '<\/', $m[2]) . $m[3];
-		}, $html);
+		$html = preg_replace_callback(
+			'#(<script(?=\s|>)(?:"[^"]*"|\'[^\']*\'|[^"\'>])*+>)(.*?)(</script>)#s',
+			fn(array $m): string => $m[1] . str_replace('</', '<\/', $m[2]) . $m[3],
+			$html,
+		);
 
 		$dom = new \DOMDocument;
 		$old = libxml_use_internal_errors(true);
@@ -76,23 +78,25 @@ class DomQuery extends \SimpleXMLElement
 	 */
 	public static function css2xpath(string $css): string
 	{
-		$xpath = '//*';
-		preg_match_all('/
-			([#.:]?)([a-z][a-z0-9_-]*)|               # id, class, pseudoclass (1,2)
-			\[
-				([a-z0-9_-]+)
-				(?:
-					([~*^$]?)=(
-						"[^"]*"|
-						\'[^\']*\'|
-						[^\]]+
-					)
-				)?
-			\]|                                       # [attr=val] (3,4,5)
-			\s*([>,+~])\s*|                           # > , + ~ (6)
-			(\s+)|                                    # whitespace (7)
-			(\*)                                      # * (8)
-		/ix', trim($css), $matches, PREG_SET_ORDER);
+		$xpath = './/*';
+		preg_match_all(<<<'XX'
+			/
+				([#.:]?)([a-z][a-z0-9_-]*)|               # id, class, pseudoclass (1,2)
+				\[
+					([a-z0-9_-]+)
+					(?:
+						([~*^$]?)=(
+							"[^"]*"|
+							'[^']*'|
+							[^\]]+
+						)
+					)?
+				\]|                                       # [attr=val] (3,4,5)
+				\s*([>,+~])\s*|                           # > , + ~ (6)
+				(\s+)|                                    # whitespace (7)
+				(\*)                                      # * (8)
+			/ix
+			XX, trim($css), $matches, PREG_SET_ORDER);
 		foreach ($matches as $m) {
 			if ($m[1] === '#') { // #ID
 				$xpath .= "[@id='$m[2]']";

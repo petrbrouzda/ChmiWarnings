@@ -17,17 +17,16 @@ use Nette;
  */
 final class TraitUse
 {
-	use Nette\SmartObject;
 	use Traits\NameAware;
 	use Traits\CommentAware;
 
-	/** @var array */
-	private $resolutions = [];
+	/** @var string[] */
+	private array $resolutions = [];
 
 
 	public function __construct(string $name)
 	{
-		if (!Nette\PhpGenerator\Helpers::isNamespaceIdentifier($name, true)) {
+		if (!Nette\PhpGenerator\Helpers::isNamespaceIdentifier($name, allowLeadingSlash: true)) {
 			throw new Nette\InvalidArgumentException("Value '$name' is not valid trait name.");
 		}
 
@@ -35,13 +34,14 @@ final class TraitUse
 	}
 
 
-	public function addResolution(string $resolution): self
+	public function addResolution(string $resolution): static
 	{
 		$this->resolutions[] = $resolution;
 		return $this;
 	}
 
 
+	/** @return string[] */
 	public function getResolutions(): array
 	{
 		return $this->resolutions;

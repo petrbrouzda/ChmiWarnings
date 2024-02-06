@@ -114,6 +114,7 @@ abstract class BaseControl extends Nette\ComponentModel\Component implements Con
 
 	/**
 	 * Returns form.
+	 * @return ($throw is true ? Form : ?Form)
 	 */
 	public function getForm(bool $throw = true): ?Form
 	{
@@ -456,7 +457,7 @@ abstract class BaseControl extends Nette\ComponentModel\Component implements Con
 
 
 	/**
-	 * Adds a input filter callback.
+	 * Adds an input filter callback.
 	 * @return static
 	 */
 	public function addFilter(callable $filter)

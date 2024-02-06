@@ -17,15 +17,13 @@ use Nette;
  */
 final class Attribute
 {
-	use Nette\SmartObject;
+	private string $name;
 
-	/** @var string */
-	private $name;
-
-	/** @var array */
-	private $args;
+	/** @var mixed[] */
+	private array $args;
 
 
+	/** @param  mixed[]  $args */
 	public function __construct(string $name, array $args)
 	{
 		if (!Helpers::isNamespaceIdentifier($name)) {
@@ -43,6 +41,7 @@ final class Attribute
 	}
 
 
+	/** @return mixed[] */
 	public function getArguments(): array
 	{
 		return $this->args;

@@ -91,6 +91,7 @@ final class DIExtension extends Nette\DI\CompilerExtension
 	private function restrictParameters(Nette\PhpGenerator\ClassType $class): void
 	{
 		if (!$this->config->export->parameters) {
+			$class->removeMethod('getParameters');
 			$class->removeMethod('getStaticParameters');
 		}
 	}
