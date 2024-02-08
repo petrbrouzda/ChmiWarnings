@@ -272,7 +272,7 @@ class Request implements IRequest
 	 */
 	public function isSameSite(): bool
 	{
-		return isset($this->cookies[Helpers::STRICT_COOKIE_NAME]);
+		return isset($this->cookies[Helpers::StrictCookieName]);
 	}
 
 
@@ -313,6 +313,25 @@ class Request implements IRequest
 	public function getRawBody(): ?string
 	{
 		return $this->rawBodyCallback ? ($this->rawBodyCallback)() : null;
+	}
+
+
+	/**
+	 * Returns basic HTTP authentication credentials.
+	 * @return array{string, string}|null
+	 */
+	public function getBasicCredentials(): ?array
+	{
+		return preg_match(
+			'~^Basic (\S+)$~',
+			$this->headers['authorization'] ?? '',
+			$t
+		)
+			&& ($t = base64_decode($t[1], true))
+			&& ($t = explode(':', $t, 2))
+			&& (count($t) === 2)
+			? $t
+			: null;
 	}
 
 

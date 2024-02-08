@@ -64,7 +64,6 @@ class RequestFactory
 		$url = new Url;
 		$this->getServer($url);
 		$this->getPathAndQuery($url);
-		$this->getUserAndPassword($url);
 		[$post, $cookies] = $this->getGetPostCookie($url);
 		[$remoteAddr, $remoteHost] = $this->getClient($url);
 
@@ -90,12 +89,12 @@ class RequestFactory
 
 		if (
 			(isset($_SERVER[$tmp = 'HTTP_HOST']) || isset($_SERVER[$tmp = 'SERVER_NAME']))
-			&& preg_match('#^([a-z0-9_.-]+|\[[a-f0-9:]+\])(:\d+)?$#Di', $_SERVER[$tmp], $pair)
+			&& ($pair = $this->parseHostAndPort($_SERVER[$tmp]))
 		) {
-			$url->setHost(rtrim(strtolower($pair[1]), '.'));
-			if (isset($pair[2])) {
-				$url->setPort((int) substr($pair[2], 1));
-			} elseif (isset($_SERVER['SERVER_PORT'])) {
+			$url->setHost($pair[0]);
+			if (isset($pair[1])) {
+				$url->setPort($pair[1]);
+			} elseif ($tmp === 'SERVER_NAME' && isset($_SERVER['SERVER_PORT'])) {
 				$url->setPort((int) $_SERVER['SERVER_PORT']);
 			}
 		}
@@ -113,13 +112,6 @@ class RequestFactory
 		$path = Strings::fixEncoding(Strings::replace($path, $this->urlFilters['path']));
 		$url->setPath($path);
 		$url->setQuery($tmp[1] ?? '');
-	}
-
-
-	private function getUserAndPassword(Url $url): void
-	{
-		$url->setUser($_SERVER['PHP_AUTH_USER'] ?? '');
-		$url->setPassword($_SERVER['PHP_AUTH_PW'] ?? '');
 	}
 
 
@@ -230,6 +222,7 @@ class RequestFactory
 					'name' => $v['name'][$k],
 					'type' => $v['type'][$k],
 					'size' => $v['size'][$k],
+					'full_path' => $v['full_path'][$k] ?? null,
 					'tmp_name' => $v['tmp_name'][$k],
 					'error' => $v['error'][$k],
 					'@' => &$v['@'][$k],
@@ -244,27 +237,35 @@ class RequestFactory
 	private function getHeaders(): array
 	{
 		if (function_exists('apache_request_headers')) {
-			return apache_request_headers();
+			$headers = apache_request_headers();
+		} else {
+			$headers = [];
+			foreach ($_SERVER as $k => $v) {
+				if (strncmp($k, 'HTTP_', 5) === 0) {
+					$k = substr($k, 5);
+				} elseif (strncmp($k, 'CONTENT_', 8)) {
+					continue;
+				}
+
+				$headers[strtr($k, '_', '-')] = $v;
+			}
 		}
 
-		$headers = [];
-		foreach ($_SERVER as $k => $v) {
-			if (strncmp($k, 'HTTP_', 5) === 0) {
-				$k = substr($k, 5);
-			} elseif (strncmp($k, 'CONTENT_', 8)) {
-				continue;
+		if (!isset($headers['Authorization'])) {
+			if (isset($_SERVER['PHP_AUTH_USER'], $_SERVER['PHP_AUTH_PW'])) {
+				$headers['Authorization'] = 'Basic ' . base64_encode($_SERVER['PHP_AUTH_USER'] . ':' . $_SERVER['PHP_AUTH_PW']);
+			} elseif (isset($_SERVER['PHP_AUTH_DIGEST'])) {
+				$headers['Authorization'] = 'Digest ' . $_SERVER['PHP_AUTH_DIGEST'];
 			}
-
-			$headers[strtr($k, '_', '-')] = $v;
 		}
 
 		return $headers;
 	}
 
 
-	private function getMethod(): ?string
+	private function getMethod(): string
 	{
-		$method = $_SERVER['REQUEST_METHOD'] ?? null;
+		$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 		if (
 			$method === 'POST'
 			&& preg_match('#^[A-Z]+$#D', $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'] ?? '')
@@ -320,22 +321,13 @@ class RequestFactory
 			$url->setPort($url->getScheme() === 'https' ? 443 : 80);
 		}
 
-		if (isset($proxyParams['host']) && count($proxyParams['host']) === 1) {
-			$host = $proxyParams['host'][0];
-			$startingDelimiterPosition = strpos($host, '[');
-			if ($startingDelimiterPosition === false) { //IPv4
-				$pair = explode(':', $host);
-				$url->setHost($pair[0]);
-				if (isset($pair[1])) {
-					$url->setPort((int) $pair[1]);
-				}
-			} else { //IPv6
-				$endingDelimiterPosition = strpos($host, ']');
-				$url->setHost(substr($host, strpos($host, '[') + 1, $endingDelimiterPosition - 1));
-				$pair = explode(':', substr($host, $endingDelimiterPosition));
-				if (isset($pair[1])) {
-					$url->setPort((int) $pair[1]);
-				}
+		if (
+			isset($proxyParams['host']) && count($proxyParams['host']) === 1
+			&& ($pair = $this->parseHostAndPort($proxyParams['host'][0]))
+		) {
+			$url->setHost($pair[0]);
+			if (isset($pair[1])) {
+				$url->setPort($pair[1]);
 			}
 		}
 		return $remoteAddr ?? null;
@@ -374,6 +366,18 @@ class RequestFactory
 		}
 
 		return $remoteAddr ?? null;
+	}
+
+
+	/** @return array{string, ?int}|null */
+	private function parseHostAndPort(string $s): ?array
+	{
+		return preg_match('#^([a-z0-9_.-]+|\[[a-f0-9:]+])(:\d+)?$#Di', $s, $matches)
+			? [
+				rtrim(strtolower($matches[1]), '.'),
+				isset($matches[2]) ? (int) substr($matches[2], 1) : null,
+			]
+			: null;
 	}
 
 

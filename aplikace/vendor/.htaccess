@@ -1,2 +1,5 @@
 Order Allow,Deny
 Deny from all
+
+# Apache 2.4+
+Require all denied

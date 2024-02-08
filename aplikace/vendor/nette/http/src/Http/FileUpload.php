@@ -17,6 +17,7 @@ use Nette;
  *
  * @property-read string $name
  * @property-read string $sanitizedName
+ * @property-read string $untrustedFullPath
  * @property-read string|null $contentType
  * @property-read int $size
  * @property-read string $temporaryFile
@@ -28,13 +29,20 @@ final class FileUpload
 {
 	use Nette\SmartObject;
 
+	/** @deprecated */
 	public const IMAGE_MIME_TYPES = ['image/gif', 'image/png', 'image/jpeg', 'image/webp'];
 
 	/** @var string */
 	private $name;
 
+	/** @var string|null */
+	private $fullPath;
+
 	/** @var string|false|null */
 	private $type;
+
+	/** @var string|false|null */
+	private $extension;
 
 	/** @var int */
 	private $size;
@@ -56,6 +64,7 @@ final class FileUpload
 		}
 
 		$this->name = $value['name'];
+		$this->fullPath = $value['full_path'] ?? null;
 		$this->size = $value['size'];
 		$this->tmpName = $value['tmp_name'];
 		$this->error = $value['error'];
@@ -92,12 +101,25 @@ final class FileUpload
 		$name = str_replace(['-.', '.-'], '.', $name);
 		$name = trim($name, '.-');
 		$name = $name === '' ? 'unknown' : $name;
-		if ($this->isImage()) {
+		if ($ext = $this->getSuggestedExtension()) {
 			$name = preg_replace('#\.[^.]+$#D', '', $name);
-			$name .= '.' . ($this->getImageFileExtension() ?? 'unknown');
+			$name .= '.' . $ext;
 		}
 
 		return $name;
+	}
+
+
+	/**
+	 * Returns the original full path as submitted by the browser during directory upload. Do not trust the value
+	 * returned by this method. A client could send a malicious directory structure with the intention to corrupt
+	 * or hack your application.
+	 *
+	 * The full path is only available in PHP 8.1 and above. In previous versions, this method returns the file name.
+	 */
+	public function getUntrustedFullPath(): string
+	{
+		return $this->fullPath ?? $this->name;
 	}
 
 
@@ -116,7 +138,28 @@ final class FileUpload
 
 
 	/**
-	 * Returns the path of the temporary location of the uploaded file.
+	 * Returns the appropriate file extension (without the period) corresponding to the detected MIME type. Requires the PHP extension fileinfo.
+	 */
+	public function getSuggestedExtension(): ?string
+	{
+		if ($this->isOk() && $this->extension === null) {
+			$exts = finfo_file(finfo_open(FILEINFO_EXTENSION), $this->tmpName);
+			if ($exts && $exts !== '???') {
+				return $this->extension = preg_replace('~[/,].*~', '', $exts);
+			}
+			[, , $type] = @getimagesize($this->tmpName); // @ - files smaller than 12 bytes causes read error
+			if ($type) {
+				return $this->extension = image_type_to_extension($type, false);
+			}
+			$this->extension = false;
+		}
+
+		return $this->extension ?: null;
+	}
+
+
+	/**
+	 * Returns the size of the uploaded file in bytes.
 	 */
 	public function getSize(): int
 	{
@@ -193,17 +236,25 @@ final class FileUpload
 
 
 	/**
-	 * Returns true if the uploaded file is a JPEG, PNG, GIF, or WebP image.
-	 * Detection is based on its signature, the integrity of the file is not checked. Requires PHP extension fileinfo.
+	 * Returns true if the uploaded file is an image and the format is supported by PHP, so it can be loaded using the toImage() method.
+	 * Detection is based on its signature, the integrity of the file is not checked. Requires PHP extensions fileinfo & gd.
 	 */
 	public function isImage(): bool
 	{
-		return in_array($this->getContentType(), self::IMAGE_MIME_TYPES, true);
+		$flag = imagetypes();
+		$types = array_filter([
+			$flag & IMG_GIF ? 'image/gif' : null,
+			$flag & IMG_JPG ? 'image/jpeg' : null,
+			$flag & IMG_PNG ? 'image/png' : null,
+			$flag & IMG_WEBP ? 'image/webp' : null,
+			$flag & 256 ? 'image/avif' : null, // IMG_AVIF
+		]);
+		return in_array($this->getContentType(), $types, true);
 	}
 
 
 	/**
-	 * Loads an image.
+	 * Converts uploaded image to Nette\Utils\Image object.
 	 * @throws Nette\Utils\ImageException  If the upload was not successful or is not a valid image
 	 */
 	public function toImage(): Nette\Utils\Image
@@ -225,12 +276,11 @@ final class FileUpload
 
 	/**
 	 * Returns image file extension based on detected content type (without dot).
+	 * @deprecated use getSuggestedExtension()
 	 */
 	public function getImageFileExtension(): ?string
 	{
-		return $this->isImage()
-			? explode('/', $this->getContentType())[1]
-			: null;
+		return $this->getSuggestedExtension();
 	}
 
 

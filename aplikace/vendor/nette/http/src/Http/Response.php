@@ -37,7 +37,7 @@ final class Response implements IResponse
 	/** @var bool Whether warn on possible problem with data in output buffer */
 	public $warnOnBuffer = true;
 
-	/** @var bool  Send invisible garbage for IE 6? */
+	/** @deprecated */
 	private static $fixIE = true;
 
 	/** @var int HTTP response code */
@@ -67,7 +67,7 @@ final class Response implements IResponse
 		self::checkHeaders();
 		$this->code = $code;
 		$protocol = $_SERVER['SERVER_PROTOCOL'] ?? 'HTTP/1.1';
-		$reason = $reason ?? self::REASON_PHRASES[$code] ?? 'Unknown status';
+		$reason = $reason ?? self::ReasonPhrases[$code] ?? 'Unknown status';
 		header("$protocol $code $reason");
 		return $this;
 	}
@@ -160,7 +160,7 @@ final class Response implements IResponse
 	 * Redirects to another URL. Don't forget to quit the script then.
 	 * @throws Nette\InvalidStateException  if HTTP headers have been sent
 	 */
-	public function redirect(string $url, int $code = self::S302_FOUND): void
+	public function redirect(string $url, int $code = self::S302_Found): void
 	{
 		$this->setCode($code);
 		$this->setHeader('Location', $url);
@@ -177,18 +177,18 @@ final class Response implements IResponse
 	 * @return static
 	 * @throws Nette\InvalidStateException  if HTTP headers have been sent
 	 */
-	public function setExpiration(?string $time)
+	public function setExpiration(?string $expire)
 	{
 		$this->setHeader('Pragma', null);
-		if (!$time) { // no cache
+		if (!$expire) { // no cache
 			$this->setHeader('Cache-Control', 's-maxage=0, max-age=0, must-revalidate');
 			$this->setHeader('Expires', 'Mon, 23 Jan 1978 10:00:00 GMT');
 			return $this;
 		}
 
-		$time = DateTime::from($time);
-		$this->setHeader('Cache-Control', 'max-age=' . ($time->format('U') - time()));
-		$this->setHeader('Expires', Helpers::formatDate($time));
+		$expire = DateTime::from($expire);
+		$this->setHeader('Cache-Control', 'max-age=' . ($expire->format('U') - time()));
+		$this->setHeader('Expires', Helpers::formatDate($expire));
 		return $this;
 	}
 
@@ -239,30 +239,16 @@ final class Response implements IResponse
 	}
 
 
-	public function __destruct()
-	{
-		if (
-			self::$fixIE
-			&& strpos($_SERVER['HTTP_USER_AGENT'] ?? '', 'MSIE ') !== false
-			&& in_array($this->code, [400, 403, 404, 405, 406, 408, 409, 410, 500, 501, 505], true)
-			&& preg_match('#^text/html(?:;|$)#', (string) $this->getHeader('Content-Type'))
-		) {
-			echo Nette\Utils\Random::generate(2000, " \t\r\n"); // sends invisible garbage for IE
-			self::$fixIE = false;
-		}
-	}
-
-
 	/**
 	 * Sends a cookie.
-	 * @param  string|int|\DateTimeInterface $time  expiration time, value null means "until the browser session ends"
+	 * @param  string|int|\DateTimeInterface $expire  expiration time, value null means "until the browser session ends"
 	 * @return static
 	 * @throws Nette\InvalidStateException  if HTTP headers have been sent
 	 */
 	public function setCookie(
 		string $name,
 		string $value,
-		$time,
+		$expire,
 		?string $path = null,
 		?string $domain = null,
 		?bool $secure = null,
@@ -271,12 +257,12 @@ final class Response implements IResponse
 	) {
 		self::checkHeaders();
 		$options = [
-			'expires' => $time ? (int) DateTime::from($time)->format('U') : 0,
+			'expires' => $expire ? (int) DateTime::from($expire)->format('U') : 0,
 			'path' => $path ?? ($domain ? '/' : $this->cookiePath),
 			'domain' => $domain ?? ($path ? '' : $this->cookieDomain),
 			'secure' => $secure ?? $this->cookieSecure,
 			'httponly' => $httpOnly ?? true,
-			'samesite' => $sameSite = ($sameSite ?? self::SAME_SITE_LAX),
+			'samesite' => $sameSite = ($sameSite ?? self::SameSiteLax),
 		];
 		if (PHP_VERSION_ID >= 70300) {
 			setcookie($name, $value, $options);

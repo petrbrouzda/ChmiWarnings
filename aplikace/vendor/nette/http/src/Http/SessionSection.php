@@ -53,14 +53,14 @@ class SessionSection implements \IteratorAggregate, \ArrayAccess
 	 * Sets a variable in this session section.
 	 * @param  mixed  $value
 	 */
-	public function set(string $name, $value, ?string $expiration = null): void
+	public function set(string $name, $value, ?string $expire = null): void
 	{
 		if ($value === null) {
 			$this->remove($name);
 		} else {
 			$this->session->autoStart(true);
 			$this->getData()[$name] = $value;
-			$this->setExpiration($expiration, $name);
+			$this->setExpiration($expire, $name);
 		}
 	}
 
@@ -104,6 +104,7 @@ class SessionSection implements \IteratorAggregate, \ArrayAccess
 
 	/**
 	 * Sets a variable in this session section.
+	 * @deprecated  use set() instead
 	 */
 	public function __set(string $name, $value): void
 	{
@@ -114,7 +115,7 @@ class SessionSection implements \IteratorAggregate, \ArrayAccess
 
 	/**
 	 * Gets a variable from this session section.
-	 * @return mixed
+	 * @deprecated  use get() instead
 	 */
 	public function &__get(string $name)
 	{
@@ -130,6 +131,7 @@ class SessionSection implements \IteratorAggregate, \ArrayAccess
 
 	/**
 	 * Determines whether a variable in this session section is set.
+	 * @deprecated  use get() instead
 	 */
 	public function __isset(string $name): bool
 	{
@@ -140,6 +142,7 @@ class SessionSection implements \IteratorAggregate, \ArrayAccess
 
 	/**
 	 * Unsets a variable in this session section.
+	 * @deprecated  use remove() instead
 	 */
 	public function __unset(string $name): void
 	{
@@ -149,6 +152,7 @@ class SessionSection implements \IteratorAggregate, \ArrayAccess
 
 	/**
 	 * Sets a variable in this session section.
+	 * @deprecated  use set() instead
 	 */
 	public function offsetSet($name, $value): void
 	{
@@ -158,7 +162,7 @@ class SessionSection implements \IteratorAggregate, \ArrayAccess
 
 	/**
 	 * Gets a variable from this session section.
-	 * @return mixed
+	 * @deprecated  use get() instead
 	 */
 	#[\ReturnTypeWillChange]
 	public function offsetGet($name)
@@ -169,6 +173,7 @@ class SessionSection implements \IteratorAggregate, \ArrayAccess
 
 	/**
 	 * Determines whether a variable in this session section is set.
+	 * @deprecated  use get() instead
 	 */
 	public function offsetExists($name): bool
 	{
@@ -178,6 +183,7 @@ class SessionSection implements \IteratorAggregate, \ArrayAccess
 
 	/**
 	 * Unsets a variable in this session section.
+	 * @deprecated  use remove() instead
 	 */
 	public function offsetUnset($name): void
 	{
@@ -187,27 +193,27 @@ class SessionSection implements \IteratorAggregate, \ArrayAccess
 
 	/**
 	 * Sets the expiration of the section or specific variables.
-	 * @param  ?string  $time
+	 * @param  ?string  $expire
 	 * @param  string|string[]|null  $variables  list of variables / single variable to expire
 	 * @return static
 	 */
-	public function setExpiration($time, $variables = null)
+	public function setExpiration($expire, $variables = null)
 	{
-		$this->session->autoStart((bool) $time);
+		$this->session->autoStart((bool) $expire);
 		$meta = &$this->getMeta();
-		if ($time) {
-			$time = Nette\Utils\DateTime::from($time)->format('U');
+		if ($expire) {
+			$expire = Nette\Utils\DateTime::from($expire)->format('U');
 			$max = (int) ini_get('session.gc_maxlifetime');
 			if (
 				$max !== 0 // 0 - unlimited in memcache handler
-				&& ($time - time() > $max + 3) // 3 - bulgarian constant
+				&& ($expire - time() > $max + 3) // 3 - bulgarian constant
 			) {
 				trigger_error("The expiration time is greater than the session expiration $max seconds");
 			}
 		}
 
 		foreach (is_array($variables) ? $variables : [$variables] as $variable) {
-			$meta[$variable]['T'] = $time ?: null;
+			$meta[$variable]['T'] = $expire ?: null;
 		}
 
 		return $this;

@@ -45,7 +45,7 @@ class Session
 
 	/** @var array default configuration */
 	private $options = [
-		'cookie_samesite' => IResponse::SAME_SITE_LAX,
+		'cookie_samesite' => IResponse::SameSiteLax,
 		'cookie_lifetime' => 0,   // for a maximum of 3 hours or until the browser is closed
 		'gc_maxlifetime' => self::DefaultFileLifetime, // 3 hours
 	];
@@ -134,7 +134,7 @@ class Session
 		}
 
 		$this->initialize();
-		$this->onStart($this);
+		Nette\Utils\Arrays::invoke($this->onStart, $this);
 	}
 
 
@@ -338,30 +338,35 @@ class Session
 	}
 
 
-	/**
-	 * Iteration over all sections.
-	 */
-	public function getIterator(): \Iterator
+	/** @return string[] */
+	public function getSectionNames(): array
 	{
 		if ($this->exists() && !$this->started) {
 			$this->autoStart(false);
 		}
 
-		return new \ArrayIterator(array_keys($_SESSION['__NF']['DATA'] ?? []));
+		return array_keys($_SESSION['__NF']['DATA'] ?? []);
+	}
+
+
+	/** @deprecated use getSectionNames() */
+	public function getIterator(): \Iterator
+	{
+		trigger_error(__METHOD__ . '() is deprecated', E_USER_DEPRECATED);
+		return new \ArrayIterator($this->getSectionNames());
 	}
 
 
 	/**
-	 * Cleans and minimizes meta structures. This method is called automatically on shutdown, do not call it directly.
-	 * @internal
+	 * Cleans and minimizes meta structures.
 	 */
-	public function clean(): void
+	private function clean(): void
 	{
 		if (!$this->isStarted()) {
 			return;
 		}
 
-		$this->onBeforeWrite($this);
+		Nette\Utils\Arrays::invoke($this->onBeforeWrite, $this);
 
 		$nf = &$_SESSION['__NF'];
 		foreach ($nf['META'] ?? [] as $name => $foo) {
@@ -496,19 +501,19 @@ class Session
 	 * null means "for a maximum of 3 hours or until the browser is closed".
 	 * @return static
 	 */
-	public function setExpiration(?string $time)
+	public function setExpiration(?string $expire)
 	{
-		if ($time === null) {
+		if ($expire === null) {
 			return $this->setOptions([
 				'gc_maxlifetime' => self::DefaultFileLifetime,
 				'cookie_lifetime' => 0,
 			]);
 
 		} else {
-			$time = Nette\Utils\DateTime::from($time)->format('U') - time();
+			$expire = Nette\Utils\DateTime::from($expire)->format('U') - time();
 			return $this->setOptions([
-				'gc_maxlifetime' => $time,
-				'cookie_lifetime' => $time,
+				'gc_maxlifetime' => $expire,
+				'cookie_lifetime' => $expire,
 			]);
 		}
 	}

@@ -20,15 +20,13 @@ use Nette\DI\Helpers;
  */
 final class ServicesExtension extends Nette\DI\CompilerExtension
 {
-	use Nette\SmartObject;
-
 	public function getConfigSchema(): Nette\Schema\Schema
 	{
 		return Nette\Schema\Expect::arrayOf(new DefinitionSchema($this->getContainerBuilder()));
 	}
 
 
-	public function loadConfiguration()
+	public function loadConfiguration(): void
 	{
 		$this->loadDefinitions($this->config);
 	}
@@ -37,7 +35,7 @@ final class ServicesExtension extends Nette\DI\CompilerExtension
 	/**
 	 * Loads list of service definitions.
 	 */
-	public function loadDefinitions(array $config)
+	public function loadDefinitions(array $config): void
 	{
 		foreach ($config as $key => $defConfig) {
 			$this->loadDefinition($this->convertKeyToName($key), $defConfig);
@@ -170,10 +168,6 @@ final class ServicesExtension extends Nette\DI\CompilerExtension
 			}
 		}
 
-		if (isset($config->parameters)) {
-			$definition->setParameters($config->parameters);
-		}
-
 		if (isset($config->inject)) {
 			$definition->addTag(InjectExtension::TagInject, $config->inject);
 		}
@@ -187,6 +181,16 @@ final class ServicesExtension extends Nette\DI\CompilerExtension
 		}
 
 		if (isset($config->references)) {
+			foreach ($config->references as $name => $reference) {
+				if ($reference instanceof Statement) {
+					$config->references[$name] = '@' . $this->getContainerBuilder()
+						->addDefinition(null)
+						->setFactory($reference)
+						->setAutowired(false)
+						->getName();
+				}
+			}
+
 			$definition->setReferences($config->references);
 		}
 
@@ -231,7 +235,7 @@ final class ServicesExtension extends Nette\DI\CompilerExtension
 		if (is_int($key)) {
 			return null;
 		} elseif (preg_match('#^@[\w\\\\]+$#D', $key)) {
-			return $this->getContainerBuilder()->getByType(substr($key, 1), true);
+			return $this->getContainerBuilder()->getByType(substr($key, 1), throw: true);
 		}
 
 		return $key;
