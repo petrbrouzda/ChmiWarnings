@@ -18,7 +18,7 @@ class Config
     /**
      * URL sluzby CHMI
      */
-    public $url = 'https://vystrahy-cr.chmi.cz/data/XOCZ50_OKPR.xml';
+    public $url = 'https://vystrahy-cr.chmi.cz/data2/XOCZ50_OKPR.xml';
 
     /**
      * Jak dlouho plati stazeny soubor, sekundy
